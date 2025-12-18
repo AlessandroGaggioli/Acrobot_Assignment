@@ -3,11 +3,10 @@ import parameters as par
 import numpy as np
 import matplotlib.pyplot as plt
 import animation 
+import math
 
-xx_init = np.array(0.01,0.01,0.0,0.0)
-uu_init = np.array(0.0)
-
-print(1)
+xx_init = np.array([np.radians(90.0),np.radians(40.0),0.0,0.0]) 
+uu_init = np.array([0.0]) 
 
 dt = par.dt
 ns = par.ns 
@@ -21,18 +20,17 @@ uu = np.zeros((ni,TT))
 xx_temp = np.zeros(ns)
 uu_temp = np.zeros(ni)
 
-xx_temp = xx_init 
+xx_temp = xx_init
 uu_temp = uu_init
+xx[:,0] = xx_init
 
 kk = 0 
-print(TT)
-while (TT-kk*dt>0):
+
+while kk < TT-1:
     
-    xx_temp= dyn.dynamics(xx,uu)[0]
-    xx[:,kk] = xx_temp
+    xx_temp= dyn.dynamics(xx_temp,uu_temp)[0]
+    xx[:,kk+1] = xx_temp
     kk=kk+1 
-    print(kk)
-    print(TT-kk*dt)
 
 #plot
 x = np.linspace(0, TT, TT)  # X-axis values
@@ -51,8 +49,9 @@ plt.ylabel("DEGREE (deg)")  # Label for y-axis
 plt.legend()  # Add legend
 plt.grid(True)  # Add grid for better readability
 
-plt.show()  # Display the plot 
+
 xx_star = np.zeros((ns,ni))#,max_iters)) #?? max iter va aggiutno alle altre vairabili? poi come si usa questa coordinata?
-animation.animate_double_pendolum(xx_star=xx_temp, xx_ref=xx, dt=dt)
+animation.animate_double_pendolum(xx_star=xx, xx_ref=(xx/math.pi*180), dt=dt)
+plt.show()  # Display the plot 
 # when you have the optimal trajectory put xx_star=xx_star, xx_ref=xx_ref
 

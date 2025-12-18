@@ -64,70 +64,40 @@ ddq = M.inv() @ (Tau_vec - C @ dq - F @ dq - G_vec)
 # x_dot = f(x,u)
 f_cont = sy.Matrix([dtheta1,dtheta2,ddq[0],ddq[1]]) 
 
-#Runge-Kutta 4th order method for discretization
-#step 1 
-k1 = f_cont # slope at beginning of interval
-#step 2
-k2_state = xx_sym + (dt/2) * k1 # state estimation at midpoint (dt/2) using k1
-subs_k2 = list(zip(xx_sym, k2_state)) # create substitution list for midpoint state, zip couples each state variable with its estimated value
-k2 = f_cont.subs(subs_k2) # dynamics f(...) evaluated at midpoint state: f(x_t + dt/2 * k1, u_t)
-#step 3 
-k3_state = xx_sym + (dt/2) * k2 # state estimation at midpoint (dt/2) using k2
-subs_k3 = list(zip(xx_sym, k3_state)) # create substitution list for midpoint state, zip couples each state variable with its estimated value
-k3 = f_cont.subs(subs_k3) # dynamics f(...) evaluated at midpoint state: f(x_t + dt/2 * k2, u_t)
-#step 4
-k4_state = xx_sym + dt * k3 # state estimation at end of interval (
-subs_k4 = list(zip(xx_sym, k4_state)) # create substitution list for end state, zip couples each state variable with its estimated value
-k4 = f_cont.subs(subs_k4) # dynamics f(...) evaluated at end
+# Calcolo Jacobiani Continui (A_c, B_c)
+Jac_x_sym = f_cont.jacobian(xx_sym)
+Jac_u_sym = f_cont.jacobian(uu_sym)
 
-# Combine to get discrete time dynamics
-"""
-We calculate the state at the next step x_t+1 by taking a weighted average of the four slopes
-Now f_sym is a symbolic expression representing the exact evolution of the system for a step dt
-"""
-f_sym = xx_sym + (dt / 6) * (k1 + 2 * k2 + 2 * k3 + k4)
-
-#Gradient of the dynamics
-dfx_sym = f_sym.jacobian(xx_sym).T #gradients are the transposed Jacobians
-dfu_sym = f_sym.jacobian(uu_sym).T #gradients are the transposed Jacobians
-
-"""
-sympy is slow for numerical computations
-we convert the symbolic expressions into numerical functions using lambdify
-f_dt_lambdified: next state function in "python/numpy" format
-dfx_lambdified: gradient w.r.t. state in "python/numpy" format
-dfu_lambdified: gradient w.r.t. input in "python/numpy" format
-"""
-f_dt_lambdified = sy.lambdify((xx_sym, uu_sym), f_sym, 'numpy') 
-dfx_lambdified = sy.lambdify((xx_sym, uu_sym), dfx_sym, 'numpy')
-dfu_lambdified = sy.lambdify((xx_sym, uu_sym), dfu_sym, 'numpy')
+# Convertiamo in funzioni Numpy la dinamica CONTINUA (non discreta)
+f_cont_lambdified = sy.lambdify((xx_sym, uu_sym), f_cont, 'numpy')
+Jac_x_lambdified = sy.lambdify((xx_sym, uu_sym), Jac_x_sym, 'numpy')
+Jac_u_lambdified = sy.lambdify((xx_sym, uu_sym), Jac_u_sym, 'numpy')
 
 def dynamics(xx,uu): 
     
-    xx = np.asarray(xx).reshape(ns,1)
-    uu = np.asarray(uu).reshape(ni,1)
-    """
-    In python a vector can be a flat array or a column vector
-    SymPy lambdified functions expect column vectors to do matricial operations correctly
-    We reshape the inputs to column vectors before passing them to the lambdified functions
-    """
-    # next state computation
-    xxp = np.array(f_dt_lambdified(xx,uu)).squeeze() 
-    """
-    f_dt_lambdified returns a 2D array, we use squeeze to convert it to a 1D array
-    """
-    # gradients computation
-    fx = np.array(dfx_lambdified(xx,uu))
-    fu = np.array(dfu_lambdified(xx,uu))
-    """
-    calculate the gradients using the lambdified functions
-    dfx_lambdified: derivative of f w.r.t. x
-    dfu_lambdified: derivative of f w.r.t. u
-    As we defined them in the simbolic part, this functions return the transposed Jacobians (A_T and B_T)
-    """
+    xx = np.asarray(xx).flatten()
+    uu = np.asarray(uu).flatten()
+    
+    # --- 1. Integrazione Numerica RK4 (fatta con i numeri, non simboli) ---
+    # k1 = f(x, u)
+    k1 = np.array(f_cont_lambdified(xx, uu)).flatten()
+    # k2 = f(x + dt/2 * k1, u)
+    k2 = np.array(f_cont_lambdified(xx + 0.5 * dt * k1, uu)).flatten()
+    # k3 = f(x + dt/2 * k2, u)
+    k3 = np.array(f_cont_lambdified(xx + 0.5 * dt * k2, uu)).flatten()
+    # k4 = f(x + dt * k3, u)
+    k4 = np.array(f_cont_lambdified(xx + dt * k3, uu)).flatten()
+    # x_next = x + (dt/6) * (k1 + 2k2 + 2k3 + k4)
+    xxp = xx + (dt / 6.0) * (k1 + 2 * k2 + 2 * k3 + k4).flatten()
 
-    # return next state and gradients
-    # xxp: next state
-    # fx: A_T = df/dx
-    # fu: B_T = df/du
-    return xxp, fx, fu
+    # --- 2. Calcolo Gradienti Discreti ---
+    # Calcoliamo A continuo e B continuo
+    A_c = np.array(Jac_x_lambdified(xx, uu))
+    B_c = np.array(Jac_u_lambdified(xx, uu))
+
+    # Approssimazione discreta (Eulero): A_d = I + A_c * dt
+    fx = np.eye(ns) + A_c * dt
+    fu = B_c * dt
+
+    # Ritorniamo i gradienti trasposti come nel tuo codice originale
+    return xxp, fx.T, fu.T

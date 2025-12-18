@@ -19,5 +19,5 @@ ns = 4 #number of states [theta1, theta2, dtheta1, dtheta2]
 ni = 1 # number of inputs [tau] (torque applied at joint 2)
 
 # simulation parameters
-dt = 0.01       # time step (s)
-tf = 1          # simulation time (s)
+dt = 0.05       # time step (s)
+tf = 30          # simulation time (s)
