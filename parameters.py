@@ -20,3 +20,4 @@ ni = 1 # number of inputs [tau] (torque applied at joint 2)
 
 # simulation parameters
 dt = 0.01       # time step (s)
+tf = 1          # simulation time (s)

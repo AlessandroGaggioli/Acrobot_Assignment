@@ -94,6 +94,9 @@ dfu_sym = f_sym.jacobian(uu_sym).T #gradients are the transposed Jacobians
 """
 sympy is slow for numerical computations
 we convert the symbolic expressions into numerical functions using lambdify
+f_dt_lambdified: next state function in "python/numpy" format
+dfx_lambdified: gradient w.r.t. state in "python/numpy" format
+dfu_lambdified: gradient w.r.t. input in "python/numpy" format
 """
 f_dt_lambdified = sy.lambdify((xx_sym, uu_sym), f_sym, 'numpy') 
 dfx_lambdified = sy.lambdify((xx_sym, uu_sym), dfx_sym, 'numpy')
@@ -109,7 +112,7 @@ def dynamics(xx,uu):
     We reshape the inputs to column vectors before passing them to the lambdified functions
     """
     # next state computation
-    xxp = np.array(f_dt_lambdified(xx,uu)).squeeze()
+    xxp = np.array(f_dt_lambdified(xx,uu)).squeeze() 
     """
     f_dt_lambdified returns a 2D array, we use squeeze to convert it to a 1D array
     """
@@ -117,7 +120,7 @@ def dynamics(xx,uu):
     fx = np.array(dfx_lambdified(xx,uu))
     fu = np.array(dfu_lambdified(xx,uu))
     """
-    calculate the gradients usthising the lambdified functions
+    calculate the gradients using the lambdified functions
     dfx_lambdified: derivative of f w.r.t. x
     dfu_lambdified: derivative of f w.r.t. u
     As we defined them in the simbolic part, this functions return the transposed Jacobians (A_T and B_T)
