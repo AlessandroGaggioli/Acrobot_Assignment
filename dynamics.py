@@ -1,6 +1,7 @@
 import numpy as np
 import sympy as sy
 import parameters as par #import parameters file "parameters.py"
+import casadi as ca
 
 #system dimensions 
 
@@ -100,4 +101,76 @@ def dynamics(xx,uu):
     fu = B_c * dt
 
     # Ritorniamo i gradienti trasposti come nel tuo codice originale
+    return xxp, fx.T, fu.T
+
+def dynamics_casadi(xx, uu):
+
+    x = ca.SX.sym('x', ns)
+    u = ca.SX.sym('u', ni)
+
+    theta1, theta2 = x[0], x[1]
+    dtheta1, dtheta2 = x[2], x[3]
+
+    m1,m2 = par.m1, par.m2
+    l1,l2 = par.l1, par.l2
+    lc1,lc2 = par.lc1, par.lc2
+    I1,I2 = par.I1, par.I2
+    g = par.g
+    f1,f2 = par.f1, par.f2
+
+    M11 = I1 + I2 + m1*lc1**2 + m2*(l1**2 + lc2**2 + 2*l1*lc2*ca.cos(theta2))
+    M12 = I2 + m2*lc2*(l1*ca.cos(theta2) + lc2)
+    M21 = M12
+    M22 = I2 + m2*lc2**2
+
+    M = ca.vertcat(
+        ca.horzcat(M11, M12),
+        ca.horzcat(M21, M22)
+    )
+
+    C = ca.vertcat(
+        ca.horzcat(-l1*lc2*m2*dtheta2*ca.sin(theta2),
+                   -l1*lc2*m2*(dtheta1+dtheta2)*ca.sin(theta2)),
+        ca.horzcat(l1*lc2*m2*dtheta1*ca.sin(theta2), 0)
+    )
+
+    G = ca.vertcat(
+        g*m1*lc1*ca.sin(theta1)
+        + g*m2*(l1*ca.sin(theta1) + lc2*ca.sin(theta1 + theta2)),
+        g*m2*lc2*ca.sin(theta1 + theta2)
+    )
+
+    F = ca.vertcat(f1*dtheta1, f2*dtheta2)
+
+    dq = ca.vertcat(dtheta1, dtheta2)
+
+    ddq = ca.solve(M, ca.vertcat(0, u[0]) - C @ dq - F - G)
+
+    xdot = ca.vertcat(
+        dtheta1,
+        dtheta2,
+        ddq[0],
+        ddq[1]
+    )
+
+    dae = {'x': x, 'p': u, 'ode': xdot}
+
+    integrator = ca.integrator('int', 'cvodes', dae, {'tf': dt})
+
+    x_next = integrator(x0=x, p=u)['xf']
+
+    A = ca.jacobian(x_next, x)
+    B = ca.jacobian(x_next, u)
+
+    f_fun = ca.Function('f_fun', [x, u], [x_next])
+    A_fun = ca.Function('A_fun', [x, u], [A])
+    B_fun = ca.Function('B_fun', [x, u], [B])
+
+    xx = np.asarray(xx).flatten()
+    uu = np.asarray(uu).flatten()
+
+    xxp = np.array(f_fun(xx, uu)).flatten()
+    fx = np.array(A_fun(xx, uu))
+    fu = np.array(B_fun(xx, uu))
+
     return xxp, fx.T, fu.T

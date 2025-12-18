@@ -28,7 +28,7 @@ kk = 0
 
 while kk < TT-1:
     
-    xx_temp= dyn.dynamics(xx_temp,uu_temp)[0]
+    xx_temp= dyn.dynamics_casadi(xx_temp,uu_temp)[0]
     xx[:,kk+1] = xx_temp
     kk=kk+1 
 
