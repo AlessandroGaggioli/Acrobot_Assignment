@@ -63,6 +63,7 @@ plt.show()  # Display the plot
 #Equilibium  points
 xe1 = np.array([0.0, 0.0, 0.0, 0.0])
 xe2 = np. array([0.0, np.pi, 0.0, 0.0])
+
 xx_ref, uu_ref = task1.build_reference(xe1, xe2, TT)
 
 # Open-loop simulation, input = 0
