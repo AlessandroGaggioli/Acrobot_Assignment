@@ -42,7 +42,7 @@ animation.animate_double_pendolum(
     dt = dt
 )
 
-# Plot angles
+# Plot theta_ref and theta_sim
 t = np.arange(TT) * dt
 plt.figure()
 plt.subplot(2,1,1)
