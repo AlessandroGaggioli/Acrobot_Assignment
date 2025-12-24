@@ -98,3 +98,41 @@ plt.grid()
 
 plt.xlabel("time [s]")
 plt.show()
+
+
+xe1, ue1, xe2, ue2 = task1.find_equilibria()
+xx_ref, uu_ref = task1.build_reference(xe1, xe2, TT)
+uu_ref[:] = ue1
+
+# Open-loop simulation, input = 0
+xx_sim = np.zeros((ns, TT))
+xx_sim[:, 0] = xx_ref[:, 0]
+
+for k in range(TT - 1):
+    u = uu_ref[:,k]
+    xx_sim[:, k+1] = dyn.dynamics_casadi(xx_sim[:, k], u)[0]
+
+# Animation
+animation.animate_double_pendolum(
+    xx_star = xx_sim * 180 / math.pi,
+    xx_ref  = xx_ref * 180 / math.pi,
+    dt = dt
+)
+
+# Plot theta_ref and theta_sim
+t = np.arange(TT) * dt
+plt.figure()
+plt.subplot(2,1,1)
+plt.plot(t, xx_ref[0,:], 'g--', label='theta1 ref')
+plt.plot(t, xx_sim[0,:], 'b', label='theta1 sim')
+plt.legend()
+plt.grid()
+
+plt.subplot(2,1,2)
+plt.plot(t, xx_ref[1,:], 'g--', label='theta2 ref')
+plt.plot(t, xx_sim[1,:], 'b', label='theta2 sim')
+plt.legend()
+plt.grid()
+
+plt.xlabel("time [s]")
+plt.show()
