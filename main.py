@@ -60,17 +60,17 @@ uu_temp = np.zeros(ni)
 
 
 # ---------- TEST TASK 1 ---------
-#Equilibium  points
+#Equilibrium  points
 xe1 = np.array([0.0, np.radians(-90), 0.0, 0.0])
 xe2 = np.array([0.0, np.radians(60), 0.0, 0.0])
 
 xx_eq1,uu_eq1 = task1.find_equilibria(xe1[0],xe1[1]) 
-print(f"xx_eq1: {xx_eq1*180/np.pi}, uu_eq1: {uu_eq1*180/np.pi}")
+print(f"xx_eq1: {xx_eq1*180/np.pi}, uu_eq1: {uu_eq1}")
 
 xx_eq2, uu_eq2 = task1.find_equilibria(xe2[0],xe2[1])
-print(f"xx_eq2: {xx_eq2*180/np.pi}, uu_eq2: {uu_eq2*180/np.pi}")
+print(f"xx_eq2: {xx_eq2*180/np.pi}, uu_eq2: {uu_eq2}")
 
-xx_ref = task1.build_reference(xx_eq1, xx_eq2, TT)
+xx_ref,uu_ref = task1.build_reference(xx_eq1, xx_eq2,uu_eq1,uu_eq2, TT)
 
 # # Open-loop simulation, input = uu_ref
 # xx_sim = np.zeros((ns, TT))
@@ -92,13 +92,18 @@ xx_ref = task1.build_reference(xx_eq1, xx_eq2, TT)
 # Plot theta_ref and theta_sim
 t = np.arange(TT) * dt
 plt.figure()
-plt.subplot(2,1,1)
+plt.subplot(3,1,1)
 plt.plot(t, xx_ref[0,:], 'g--', label='theta1 ref')
 plt.legend()
 plt.grid()
 
-plt.subplot(2,1,2)
+plt.subplot(3,1,2)
 plt.plot(t, xx_ref[1,:], 'g--', label='theta2 ref')
+plt.legend()
+plt.grid()
+
+plt.subplot(3,1,3)
+plt.plot(t, uu_ref[0,:], 'g--', label='u ref')
 plt.legend()
 plt.grid()
 
