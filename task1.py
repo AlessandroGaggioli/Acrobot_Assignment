@@ -48,7 +48,7 @@ def find_equilibria(theta1_guess,theta2): #theta_2 fixed, theta1_guess
 
     return xx_eq,u_eq
 
-### --- Testing functions --- ###
+# --- Testing functions ---
 
 # xx_eq1,uu_eq1 = find_equilibria(xe1[0],xe1[1]) 
 # print(f"xx_eq1: {xx_eq1*180/np.pi}, uu_eq1: {uu_eq1*180/np.pi}")
@@ -84,3 +84,46 @@ def build_reference(xe1, xe2,ue1,ue2,TT):
     xxref[:,TT-margin:] = xe2[:,None]
 
     return xxref,uuref
+
+
+def build_smooth_ref(xe1, xe2, ue1, ue2, TT):
+    '''Generates a smooth reference trajectory between tweo equilibria by using a 3rd ordet poly'''
+    ns, ni = par.ns, par.ni
+    dt = par.dt
+    
+    xxref = np.zeros((ns, TT))
+    uuref = np.zeros((ni, TT))
+    
+    #percentage time margin at beginning and end
+    margin = int(0.20 * TT) 
+    duration = (TT - 2 * margin) * dt
+    
+    #initial steady-state phase, first equilibrium point constant
+    xxref[:, :margin] = xe1[:, None]
+    uuref[:, :margin] = np.atleast_1d(ue1)[:, None]
+    
+    #Smooth transition phase
+    for kk in range(margin, TT - margin):
+        #Normalized time in [0, 1]
+        s = (kk - margin) / (TT - 2 * margin - 1)
+        
+        #3rd order poly to ensure initial and final zero velocity
+        alpha = 3*s**2 - 2*s**3
+        
+        #time derivative of poly
+        d_alpha = (6*s - 6*s**2) / duration
+        
+        #Smooth interpolation for angles
+        xxref[:2, kk] = (1 - alpha) * xe1[:2] + alpha * xe2[:2]
+        
+        #Angular velocities, time derivatives of angles
+        xxref[2:, kk] = d_alpha * (xe2[:2] - xe1[:2])
+        
+        #Smooth interpolation between the two equilibrium inputs
+        uuref[:, kk] = (1 - alpha) * ue1 + alpha * ue2
+
+    #final steady-state phase, final equilibrium point constant
+    xxref[:, TT - margin:] = xe2[:, None]
+    uuref[:, TT - margin:] = np.atleast_1d(ue2)[:, None]
+
+    return xxref, uuref

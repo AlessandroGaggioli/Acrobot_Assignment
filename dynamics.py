@@ -103,74 +103,96 @@ def dynamics(xx,uu):
     # Ritorniamo i gradienti trasposti come nel tuo codice originale
     return xxp, fx.T, fu.T
 
+
+#Global variables to store pre-compiled functions
+_f_fun = None
+_A_fun = None
+_B_fun = None
+
 def dynamics_casadi(xx, uu):
+    """
+    Computes the discrete-time dynamics and Jacobians using CasADi.
+    Includes an internal integrator (CVODES) for high-precision mapping.
+    Uses a Singleton pattern to compile symbolic functions only once.
+    """
+    global _f_fun, _A_fun, _B_fun
 
-    x = ca.SX.sym('x', ns)
-    u = ca.SX.sym('u', ni)
+    #to initialize and compute only once
+    if _f_fun is None:
+        #print("Compiling CasADi dynamics")
+        ns = par.ns
+        ni = par.ni
+        dt = par.dt
 
-    theta1, theta2 = x[0], x[1]
-    dtheta1, dtheta2 = x[2], x[3]
+        #Symbolic state and input
+        x = ca.SX.sym('x', ns)
+        u = ca.SX.sym('u', ni)
 
-    m1,m2 = par.m1, par.m2
-    l1,l2 = par.l1, par.l2
-    lc1,lc2 = par.lc1, par.lc2
-    I1,I2 = par.I1, par.I2
-    g = par.g
-    f1,f2 = par.f1, par.f2
+        #unpack the state
+        theta1, theta2 = x[0], x[1]
+        dtheta1, dtheta2 = x[2], x[3]
+        dq = ca.vertcat(dtheta1, dtheta2)
 
-    M11 = I1 + I2 + m1*lc1**2 + m2*(l1**2 + lc2**2 + 2*l1*lc2*ca.cos(theta2))
-    M12 = I2 + m2*lc2*(l1*ca.cos(theta2) + lc2)
-    M21 = M12
-    M22 = I2 + m2*lc2**2
+        #parameters
+        m1, m2 = par.m1, par.m2
+        l1, l2 = par.l1, par.l2
+        lc1, lc2 = par.lc1, par.lc2
+        I1, I2 = par.I1, par.I2
+        g, f1, f2 = par.g, par.f1, par.f2
 
-    M = ca.vertcat(
-        ca.horzcat(M11, M12),
-        ca.horzcat(M21, M22)
-    )
+        #M(q)
+        M11 = I1 + I2 + m1*lc1**2 + m2*(l1**2 + lc2**2 + 2*l1*lc2*ca.cos(theta2))
+        M12 = I2 + m2*lc2*(l1*ca.cos(theta2) + lc2)
+        M21 = M12
+        M22 = I2 + m2*lc2**2
+        M = ca.vertcat(ca.horzcat(M11, M12), ca.horzcat(M21, M22))
 
-    C = ca.vertcat(
-        ca.horzcat(-l1*lc2*m2*dtheta2*ca.sin(theta2),
-                   -l1*lc2*m2*(dtheta1+dtheta2)*ca.sin(theta2)),
-        ca.horzcat(l1*lc2*m2*dtheta1*ca.sin(theta2), 0)
-    )
+        #C(q, dq)
+        C11 = -l1*lc2*m2*dtheta2*ca.sin(theta2)
+        C12 = -l1*lc2*m2*(dtheta1+dtheta2)*ca.sin(theta2)
+        C21 = l1*lc2*m2*dtheta1*ca.sin(theta2)
+        C22 = 0
+        C = ca.vertcat(ca.horzcat(C11, C12), ca.horzcat(C21, C22))
 
-    G = ca.vertcat(
-        g*m1*lc1*ca.sin(theta1)
-        + g*m2*(l1*ca.sin(theta1) + lc2*ca.sin(theta1 + theta2)),
-        g*m2*lc2*ca.sin(theta1 + theta2)
-    )
+        #G(q)
+        G = ca.vertcat(
+            g*m1*lc1*ca.sin(theta1) + g*m2*(l1*ca.sin(theta1) + lc2*ca.sin(theta1 + theta2)),
+            g*m2*lc2*ca.sin(theta1 + theta2)
+        )
 
-    F = ca.vertcat(f1*dtheta1, f2*dtheta2)
+        #F(dq)
+        F_vec = ca.vertcat(f1*dtheta1, f2*dtheta2)
 
-    dq = ca.vertcat(dtheta1, dtheta2)
+        #torque is applied only to the second joint (Acrobot)
+        tau_vec = ca.vertcat(0, u[0])
+        ddq = ca.solve(M, tau_vec - C @ dq - F_vec - G)
 
-    ddq = ca.solve(M, ca.vertcat(0, u[0]) - C @ dq - F - G)
+        #x_dot = f(x, u)
+        xdot = ca.vertcat(dtheta1, dtheta2, ddq[0], ddq[1])
 
-    xdot = ca.vertcat(
-        dtheta1,
-        dtheta2,
-        ddq[0],
-        ddq[1]
-    )
+        #integrate dynamics over dt using CVODES solver
+        dae = {'x': x, 'p': u, 'ode': xdot}
+        integrator = ca.integrator('int', 'cvodes', dae, {'tf': dt})
+        
+        #next state (d-t)
+        x_next = integrator(x0=x, p=u)['xf']
 
-    dae = {'x': x, 'p': u, 'ode': xdot}
+        #symbolic Jacobians
+        A_sym = ca.jacobian(x_next, x)
+        B_sym = ca.jacobian(x_next, u)
 
-    integrator = ca.integrator('int', 'cvodes', dae, {'tf': dt})
+        _f_fun = ca.Function('f_fun', [x, u], [x_next])
+        _A_fun = ca.Function('A_fun', [x, u], [A_sym])
+        _B_fun = ca.Function('B_fun', [x, u], [B_sym])
+        #print("CasADi compilation complete")
 
-    x_next = integrator(x0=x, p=u)['xf']
+    #Numerical validation, ensure inputs are correctly shaped for CasADi
+    xx_num = np.asarray(xx).reshape(-1, 1)
+    uu_num = np.asarray(uu).reshape(-1, 1)
+    #compute next state and discrete Jacobians, .full() to converte in a numpy array
+    xxp = _f_fun(xx_num, uu_num).full().flatten()
+    fx = _A_fun(xx_num, uu_num).full()
+    fu = _B_fun(xx_num, uu_num).full()
 
-    A = ca.jacobian(x_next, x)
-    B = ca.jacobian(x_next, u)
-
-    f_fun = ca.Function('f_fun', [x, u], [x_next])
-    A_fun = ca.Function('A_fun', [x, u], [A])
-    B_fun = ca.Function('B_fun', [x, u], [B])
-
-    xx = np.asarray(xx).flatten()
-    uu = np.asarray(uu).flatten()
-
-    xxp = np.array(f_fun(xx, uu)).flatten()
-    fx = np.array(A_fun(xx, uu))
-    fu = np.array(B_fun(xx, uu))
-
+    #return state and transposed Jacobians for the solver
     return xxp, fx.T, fu.T
