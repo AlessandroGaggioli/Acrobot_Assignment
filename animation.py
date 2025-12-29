@@ -4,9 +4,10 @@ from matplotlib.animation import FuncAnimation
 import numpy as np
 import matplotlib.pyplot as plt
 import math
+import parameters as par
 
 
-def animate_double_pendolum(xx_star, xx_ref, dt):
+def animate_double_pendolum(xx_star, xx_ref, dt, title = 'Pendulum animation'):
       
       #print("deg:",xx_ref[0, 1]) #theta1, theta2, theta1dot, theta2dot, TT=1
       #deg->rad
@@ -28,8 +29,8 @@ def animate_double_pendolum(xx_star, xx_ref, dt):
 
       # Set up the figure and axis for the animation
       fig, ax = plt.subplots()
-      ax.set_xlim(-6, 6)  # adjust limits as needed for pendulum's reach
-      ax.set_ylim(-4, 4)
+      ax.set_xlim(-((par.l1 + par.l2)*1.05), ((par.l1 + par.l2)*1.05))  # adjust limits as needed for pendulum's reach
+      ax.set_ylim(-((par.l1 + par.l2)*1.05), ((par.l1 + par.l2)*1.05))
 
       # Plot elements
       # solid line ('o-'), dashed line ('o--'), lw=line width
@@ -37,7 +38,7 @@ def animate_double_pendolum(xx_star, xx_ref, dt):
       reference_line, = ax.plot([], [], 'o--', lw=2, color="green", label="Reference Path")
       time_text = ax.text(0.05, 0.9, '', transform=ax.transAxes)
       ax.legend()
-      ax.set_title("Pendulum Optimal Control Trajectory")
+      ax.set_title(title)
       ax.set_xlabel("X position")
       ax.set_ylabel("Y position")
       plt.grid(True)

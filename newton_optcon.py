@@ -56,7 +56,7 @@ def armijo_search(xx, uu, xx_ref, uu_ref, Kt, sigma_t, J_old):
     '''Backtracking line search to ensure sufficient cost reduction and maintain stability'''
     
     gamma = 1.0 #initial step size
-    beta = 0.5  #reduction factor
+    beta = 0.7  #reduction factor
     c = 1e-4    #armijo tolerance
 
     #Calculate expected cost reduction based on gradient of search direction

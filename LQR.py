@@ -13,12 +13,12 @@ def lqr(xx_ref, uu_ref):
     TT = xx_ref.shape[1]
     
     #Initialize cost-to-go Hessian with terminal cost weight
-    Gxx_T = cost.terminal_grad(xx_ref[:, -1], xx_ref[:, -1])[1]  #terminal cost
-    P = Gxx_T
+    P = cost.terminal_grad(xx_ref[:, -1], xx_ref[:, -1])[1]  #terminal cost
+
     
     Kt = np.zeros((ni, ns, TT-1))
 
-    #Backward Riccati recursio
+    #Backward Riccati recursion
     for kk in range(TT-2, -1, -1):
         _, fx_T, fu_T = dyn.dynamics_casadi(xx_ref[:, kk], uu_ref[:, kk]) #linearize dynamics at each step along the reference traj
         At = fx_T.T

@@ -66,8 +66,8 @@ uu_temp = np.zeros(ni)
 #Equilibrium  points
 print(' ----- Task 1 -----')
 
-xe1 = np.array([0.0, np.radians(-90), 0.0, 0.0])
-xe2 = np.array([0.0, np.radians(60), 0.0, 0.0])
+xe1 = np.array([np.radians(0), np.radians(90), 0.0, 0.0])
+xe2 = np.array([np.radians(0), np.radians(60), 0.0, 0.0])
 
 xx_eq1,uu_eq1 = task1.find_equilibria(xe1[0],xe1[1]) 
 print(f"xx_eq1: {xx_eq1*180/np.pi}, uu_eq1: {uu_eq1}")
@@ -173,7 +173,7 @@ for i in range(max_iters):
     #Fwd armijo
     xx_opt, uu_opt, gamma, J_new = newton_optcon.armijo_search(xx_opt, uu_opt, xx_ref, uu_ref, Kt, sigma_t, J_current)
     
-    print(f"iteration: {i:<5}, cost: {J_current:<10.2f}, step (gamma): {gamma:<10.4f}")
+    print(f"iteration: {i}, cost: {J_current:<10.2f}, step (gamma): {gamma:<10.2f}")
     
     if i > 0 and abs(cost_history[-2] - J_current) < armijo_threshold:
         #print("Convergerge ok")
@@ -255,7 +255,9 @@ for i in range(4):
     plt.plot(xx_ref[i, :], 'r--', label=f'Reference')
     plt.plot(xx_opt[i, :], 'b', label=f'Optimal')
     axs[i].set_ylabel(state_labels[i])
-    plt.legend(); plt.grid()
+    plt.grid()
+    if i == 0:
+        axs[i].legend(loc='best')
 
 plt.subplot(5, 1, 5)
 plt.plot(uu_opt[0, :], 'g', label='Optimal input')
@@ -270,11 +272,12 @@ plt.show()
 animation.animate_double_pendolum(
     xx_star = np.degrees(xx_opt), 
     xx_ref  = np.degrees(xx_ref),
-    dt = dt
+    dt = dt,
+    title='Task 2: Newton optimization'
 )
 
 
-#-----TASK 3----
+#----- TASK 3 -----
 print("----- Task 3 -----")
 
 #Compute LQR gains along the optimized trajectory
@@ -303,7 +306,7 @@ for i in range(4):
     axs[i].set_ylabel(state_labels[i])
     axs[i].grid(True, alpha=0.5)
     if i == 0:
-        axs[i].legend(loc='upper right')
+        axs[i].legend(loc='best')
 
 #Plot control input
 axs[4].plot(uu_opt[0, :], 'r--', linewidth=1.5, label='Optimal input')
@@ -311,7 +314,7 @@ axs[4].plot(uu_lqr[0, :], 'g', linewidth=1.2, label='LQR input')
 axs[4].set_ylabel(r'$\tau$ [Nm]')
 axs[4].set_xlabel('Time steps')
 axs[4].grid(True, alpha=0.5)
-axs[4].legend(loc='upper right')
+axs[4].legend(loc='best')
 
 plt.suptitle('Task 3: LQR', fontsize=14)
 plt.show()
@@ -319,9 +322,11 @@ plt.show()
 
 # ----- TASK 4 -----
 #Here there will be MPC task part
+#print("----- Task 4 -----")
+
 
 
 # ----- TASK 5 -----
 print(' ----- Task 5 -----')
 #Animation of lqr
-animation.animate_double_pendolum(np.degrees(xx_lqr), np.degrees(xx_opt), dt)
+animation.animate_double_pendolum(np.degrees(xx_lqr), np.degrees(xx_opt), dt, title='Task 5: LQR Animation')

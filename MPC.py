@@ -6,10 +6,11 @@ import cvxpy as cvx
 
 ns, ni = par.ns, par.ni
 
-def mpc(xx_ref, ):
+def solve_mpc(xx0, xx_ref, uu_ref, T_pred):
 
-    TT = xx_ref.shape[1]
+    return -1
 
-    
-    
+
+def simulate_mpc():
+
     return -1
