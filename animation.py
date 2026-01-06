@@ -28,8 +28,8 @@ def animate_double_pendolum(xx_star, xx_ref, dt, title = 'Pendulum animation'):
       TT = xx_star.shape[1] #number of columns
 
       # Set up the figure and axis for the animation
-      fig, ax = plt.subplots()
-      ax.set_xlim(-((par.l1 + par.l2)*1.05), ((par.l1 + par.l2)*1.05))  # adjust limits as needed for pendulum's reach
+      fig, ax = plt.subplots(figsize=(10,10))
+      ax.set_xlim(-((par.l1 + par.l2)*1.05), ((par.l1 + par.l2)*1.05))  #limits based on length of the links
       ax.set_ylim(-((par.l1 + par.l2)*1.05), ((par.l1 + par.l2)*1.05))
 
       # Plot elements

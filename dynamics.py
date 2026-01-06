@@ -69,7 +69,7 @@ f_cont = sy.Matrix([dtheta1,dtheta2,ddq[0],ddq[1]])
 Jac_x_sym = f_cont.jacobian(xx_sym)
 Jac_u_sym = f_cont.jacobian(uu_sym)
 
-# Convertiamo in funzioni Numpy la dinamica CONTINUA (non discreta)
+# Convertiamo in funzioni Numpy la dinamica CONTINUA, non discreta
 f_cont_lambdified = sy.lambdify((xx_sym, uu_sym), f_cont, 'numpy')
 Jac_x_lambdified = sy.lambdify((xx_sym, uu_sym), Jac_x_sym, 'numpy')
 Jac_u_lambdified = sy.lambdify((xx_sym, uu_sym), Jac_u_sym, 'numpy')
@@ -79,7 +79,7 @@ def dynamics(xx,uu):
     xx = np.asarray(xx).flatten()
     uu = np.asarray(uu).flatten()
     
-    # --- 1. Integrazione Numerica RK4 (fatta con i numeri, non simboli) ---
+    # --- 1. Integrazione Numerica RK4 ---
     # k1 = f(x, u)
     k1 = np.array(f_cont_lambdified(xx, uu)).flatten()
     # k2 = f(x + dt/2 * k1, u)
@@ -91,16 +91,15 @@ def dynamics(xx,uu):
     # x_next = x + (dt/6) * (k1 + 2k2 + 2k3 + k4)
     xxp = xx + (dt / 6.0) * (k1 + 2 * k2 + 2 * k3 + k4).flatten()
 
-    # --- 2. Calcolo Gradienti Discreti ---
     # Calcoliamo A continuo e B continuo
     A_c = np.array(Jac_x_lambdified(xx, uu))
     B_c = np.array(Jac_u_lambdified(xx, uu))
 
-    # Approssimazione discreta (Eulero): A_d = I + A_c * dt
+    # Approssimazione discreta, Eulero: A_d = I + A_c * dt
     fx = np.eye(ns) + A_c * dt
     fu = B_c * dt
 
-    # Ritorniamo i gradienti trasposti come nel tuo codice originale
+    #return gradients
     return xxp, fx.T, fu.T
 
 

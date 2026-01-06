@@ -95,7 +95,7 @@ def build_smooth_ref(xe1, xe2, ue1, ue2, TT):
     uuref = np.zeros((ni, TT))
     
     #percentage time margin at beginning and end
-    margin = int(0.20 * TT) 
+    margin = int(0.00 * TT) #change factor to have stable equilibrium at beginning and end... (ideally in paramters or main!!!)
     duration = (TT - 2 * margin) * dt
     
     #initial steady-state phase, first equilibrium point constant

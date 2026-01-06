@@ -14,10 +14,13 @@ f1 = 1.0 # viscous friction coefficient of joint 1
 f2 = 1.0 # viscous friction coefficient of joint 2
 
 # system parameters 
-
 ns = 4 #number of states [theta1, theta2, dtheta1, dtheta2]
 ni = 1 # number of inputs [tau] (torque applied at joint 2)
 
 # simulation parameters
 dt = 0.05       # time step (s)
 tf = 30          # simulation time (s)
+
+#Input constraints (for MPC simulation)
+umin = -5
+umax = 4

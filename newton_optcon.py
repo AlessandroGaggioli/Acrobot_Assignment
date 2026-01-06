@@ -4,7 +4,7 @@ import cost
 import parameters as par
 
 ns, ni = par.ns, par.ni
-max_iters = 10
+max_iters = 25
 
 def backward_passing(xx, uu, xx_ref, uu_ref):
     '''Riccati recursion to find optimal fb gain Kt and ff sigma_t for Newton step'''
@@ -57,7 +57,7 @@ def armijo_search(xx, uu, xx_ref, uu_ref, Kt, sigma_t, J_old):
     
     gamma = 1.0 #initial step size
     beta = 0.7  #reduction factor
-    c = 1e-4    #armijo tolerance
+    c = 0.1    #armijo tolerance
 
     #Calculate expected cost reduction based on gradient of search direction
     descent = 0
