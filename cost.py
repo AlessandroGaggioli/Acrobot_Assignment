@@ -1,10 +1,9 @@
 import numpy as np
 import parameters as par
 
-#QUESTI SAREBBE CARINO SPOSTARLI IN PARAMETERS (?)
-Q = np.diag([10,10,1,1]) #weight on theta1, theta2, dtheta1, dtheta2 for stage cost
-R = np.array([[0.1]]) #weight on tau
-QT = np.diag([500,500,100,100]) #high terminal weight for terminal cost
+Q = par.Q 
+R = par.R 
+QT = par.QT 
 
 def cost_fcn(xx, uu, xx_ref, uu_ref):
     '''Compute total cost J of a given trajectory'''

@@ -9,6 +9,9 @@ import newton_optcon
 import LQR
 import MPC
 
+import signal
+signal.signal(signal.SIGINT, signal.SIG_DFL)
+
 #task_to_execute = [False, True, True, True, True, True] #Task 0, 1, 2, 3, 4, 5
 
 ns, ni, dt, tf = par.ns, par.ni, par.dt, par.tf
@@ -57,9 +60,10 @@ plt.show()
 # ---------- TASK 1 ---------
 #Equilibrium  points
 print(' ----- Task 1 -----')
+constant_traj = 0.50
 
-xe1 = np.array([0.0, np.radians(-90), 0.0, 0.0])
-xe2 = np.array([0.0, np.radians(60), 0.0, 0.0])
+xe1 = np.array([0.0, par.theta2_start, 0.0, 0.0])
+xe2 = np.array([0.0, par.theta2_end, 0.0, 0.0])
 
 xx_eq1,uu_eq1 = task1.find_equilibria(xe1[0],xe1[1]) 
 print(f"xx_eq1: {xx_eq1*180/np.pi}, uu_eq1: {uu_eq1}")
@@ -67,13 +71,14 @@ print(f"xx_eq1: {xx_eq1*180/np.pi}, uu_eq1: {uu_eq1}")
 xx_eq2, uu_eq2 = task1.find_equilibria(xe2[0],xe2[1])
 print(f"xx_eq2: {xx_eq2*180/np.pi}, uu_eq2: {uu_eq2}")
 
-xx_ref,uu_ref = task1.build_reference(xx_eq1, xx_eq2,uu_eq1,uu_eq2, TT)
-
+xx_ref,uu_ref = task1.build_smooth_ref(xx_eq1, xx_eq2,uu_eq1,uu_eq2, TT, constant_traj)
 
 # ----- Armijo -----
 #initialization
-xx_opt = np.copy(xx_ref)
-uu_opt = np.copy(uu_ref)
+#xx_opt = np.copy(xx_ref)
+#uu_opt = np.copy(uu_ref)
+xx_opt = np.zeros_like(xx_ref)
+uu_opt = np.zeros_like(uu_ref)
 xx_history = []
 uu_history = []
 cost_history = []
@@ -81,7 +86,6 @@ cost_history = []
 
 max_iters = 50
 armijo_threshold = 1e-3
-
 
 #Newton Loop
 for i in range(max_iters):
@@ -182,8 +186,9 @@ plt.show()
 
 # ---- TASK 2 ----
 print(" ----- Task 2 -----")
+constant_traj = 0.10 
 #Generate smooth reference
-xx_ref, uu_ref = task1.build_smooth_ref(xx_eq1, xx_eq2, uu_eq1, uu_eq2, TT)
+xx_ref, uu_ref = task1.build_smooth_ref(xx_eq1, xx_eq2, uu_eq1, uu_eq2, TT,constant_traj)
 
 #Newton loop
 xx_opt = np.copy(xx_ref)

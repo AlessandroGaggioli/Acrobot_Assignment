@@ -11,15 +11,15 @@ def backward_passing(xx, uu, xx_ref, uu_ref):
     TT = xx.shape[1]
 
     #Initialize terminal costs, boundary conditions for Riccati
-    gx_T, Gxx_T = cost.terminal_grad(xx[:, -1], xx_ref[:, -1])
-    P, p = Gxx_T, gx_T
+    gx_T, Gxx_T = cost.terminal_grad(xx[:, -1], xx_ref[:, -1]) 
+    P, p = Gxx_T, gx_T 
     
     Kt = np.zeros((ni, ns, TT-1))
     sigma_t = np.zeros((ni, TT-1))
 
     #Backward recursion from terminal to init time
     for kk in range(TT-2, -1, -1):
-        #Linearize dynamicd at current trajectoy point
+        #Linearize dynamics at current trajectoy point
         _, fx_T, fu_T = dyn.dynamics_casadi(xx[:, kk], uu[:, kk]) #fx_T, fu_T are the transpose of state and input Jacobians
         
         At = fx_T.T #(4,4)
@@ -75,7 +75,7 @@ def armijo_search(xx, uu, xx_ref, uu_ref, Kt, sigma_t, J_old):
             uu_new[:, kk] = uu[:, kk] + Kt[:,:,kk] @ (xx_new[:, kk] - xx[:, kk]) + gamma * sigma_t[:, kk]
             xx_new[:, kk+1] = dyn.dynamics_casadi(xx_new[:, kk], uu_new[:, kk])[0]
             
-        #Evealuate total cost of new trajectory    
+        #Evaluate total cost of new trajectory    
         J_new = cost.cost_fcn(xx_new, uu_new, xx_ref, uu_ref)
         
         #Verify Armijo condition
