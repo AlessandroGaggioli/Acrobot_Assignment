@@ -21,7 +21,7 @@ TT = int(tf/dt)
 print(' ----- Task 0 -----')
 #Initialization of state and input arrays
 xx_test = np.zeros((ns, TT))
-uu_test = np.zeros((ni, TT)) #u = 0 to test dynamics
+uu_test = np.zeros((ni, TT)) #u = 0 to test dynamics +
 
 #Set initial condition
 xx0 = np.array([np.radians(10), np.radians(10), 0, 0]) 
@@ -75,10 +75,13 @@ xx_ref,uu_ref = task1.build_smooth_ref(xx_eq1, xx_eq2,uu_eq1,uu_eq2, TT, constan
 
 # ----- Armijo -----
 #initialization
-#xx_opt = np.copy(xx_ref)
-#uu_opt = np.copy(uu_ref)
-xx_opt = np.zeros_like(xx_ref)
-uu_opt = np.zeros_like(uu_ref)
+## mettere il primo punto d'equilibrio come costante per tutto T 
+
+xx_opt = xx_opt = np.zeros_like(xx_ref)
+xx_opt[:,:] = xx_eq1[:,np.newaxis]
+uu_opt = np.full_like(uu_ref,uu_eq1)
+
+
 xx_history = []
 uu_history = []
 cost_history = []
@@ -93,10 +96,10 @@ for i in range(max_iters):
     cost_history.append(J_current)
     
     #Riccati, backward pass
-    Kt, sigma_t = newton_optcon.backward_passing(xx_opt, uu_opt, xx_ref, uu_ref)
+    Kt, sigma_t, descent_arm = newton_optcon.backward_passing(xx_opt, uu_opt, xx_ref, uu_ref)
     
     #Fwd armijo
-    xx_opt, uu_opt, gamma, J_new = newton_optcon.armijo_search(xx_opt, uu_opt, xx_ref, uu_ref, Kt, sigma_t, J_current)
+    xx_opt, uu_opt, gamma, J_new = newton_optcon.armijo_search(xx_opt, uu_opt, xx_ref, uu_ref, Kt, sigma_t, J_current, descent_arm,plot=True)
     xx_history.append(xx_opt)
     uu_history.append(uu_opt)
     
@@ -191,8 +194,9 @@ constant_traj = 0.10
 xx_ref, uu_ref = task1.build_smooth_ref(xx_eq1, xx_eq2, uu_eq1, uu_eq2, TT,constant_traj)
 
 #Newton loop
-xx_opt = np.copy(xx_ref)
-uu_opt = np.copy(uu_ref)
+
+xx_opt[:,:] = xx_eq1[:,np.newaxis]
+uu_opt = np.full_like(uu_ref,uu_eq1)
 xx2_hist = []
 uu2_hist = []
 cost_history = []

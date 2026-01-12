@@ -18,8 +18,8 @@ ns = 4 #number of states [theta1, theta2, dtheta1, dtheta2]
 ni = 1 # number of inputs [tau] (torque applied at joint 2)
 
 # simulation parameters
-dt = 0.05       # time step (s)
-tf = 30          # simulation time (s)
+dt = 0.01       # time step (s) #da abbassare 0.01 o 0.001
+tf = 5          # simulation time (s)
 
 #Input constraints (for MPC simulation)
 umin = -5

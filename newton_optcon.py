@@ -2,6 +2,7 @@ import numpy as np
 import dynamics as dyn
 import cost
 import parameters as par
+import matplotlib.pyplot as plt
 
 ns, ni = par.ns, par.ni
 max_iters = 25
@@ -16,6 +17,8 @@ def backward_passing(xx, uu, xx_ref, uu_ref):
     
     Kt = np.zeros((ni, ns, TT-1))
     sigma_t = np.zeros((ni, TT-1))
+
+    descent_arm = 0.0 
 
     #Backward recursion from terminal to init time
     for kk in range(TT-2, -1, -1):
@@ -45,24 +48,27 @@ def backward_passing(xx, uu, xx_ref, uu_ref):
         #Store results
         Kt[:, :, kk] = K
         sigma_t[:, kk] = sigma.flatten() 
+
+        #Accumulate descent direction: descent_arm = Q_u^T * sigma
+        descent_arm += Q_u.T @sigma
         
         #Update for previous time step
         p = Q_x + Q_ux.T @ sigma
         P = Q_xx + Q_ux.T @ K
 
-    return Kt, sigma_t
+    return Kt, sigma_t, descent_arm
 
-def armijo_search(xx, uu, xx_ref, uu_ref, Kt, sigma_t, J_old):
+def armijo_search(xx, uu, xx_ref, uu_ref, Kt, sigma_t, J_old,descent_arm,plot=False):
     '''Backtracking line search to ensure sufficient cost reduction and maintain stability'''
     
     gamma = 1.0 #initial step size
     beta = 0.7  #reduction factor
-    c = 0.1    #armijo tolerance
+    c = 0.5    #armijo tolerance
 
-    #Calculate expected cost reduction based on gradient of search direction
-    descent = 0
-    for kk in range(sigma_t.shape[1]):
-        descent -= np.linalg.norm(sigma_t[:, kk])**2
+    TT = xx.shape[1]
+    descent_arm = float(np.squeeze(descent_arm))
+    gamma_list = [] 
+    costs_armijo=[]
 
     #Iteratively reduce gamma until Armijo condition is met
     for i in range(max_iters):
@@ -77,12 +83,58 @@ def armijo_search(xx, uu, xx_ref, uu_ref, Kt, sigma_t, J_old):
             
         #Evaluate total cost of new trajectory    
         J_new = cost.cost_fcn(xx_new, uu_new, xx_ref, uu_ref)
+
+        #print(f"descent_arm: {descent_arm},J_new:{J_new},J_old + c * gamma * descent_arm:{J_old + c * gamma * descent_arm}")
         
+        gamma_list.append(gamma)
+        costs_armijo.append(J_new)
+
         #Verify Armijo condition
-        if J_new < J_old + c * gamma * descent:
-            return xx_new, uu_new, gamma, J_new
+        if J_new < J_old + c * gamma * descent_arm:
+            #return xx_new, uu_new, gamma, J_new
+            print('Armjio stepsize found: {:.3}'.format(gamma))
+            break 
         
         #Decrease step size for next iteration
         gamma *= beta
-        
+
+    ######################
+    # PLOT ARMIJO DESCENT BACKTRACKING SEARCH 
+    ######################
+    if plot: 
+        steps = np.linspace(0,1.0,int(2e1))
+        costs = np.zeros(len(steps))
+
+        for ii in range(len(steps)): 
+            step = steps[ii]
+
+            xx_temp = np.zeros((ns,TT))
+            uu_temp = np.zeros((ni,TT))
+
+            xx_temp[:,0] = xx[:,0] #??? sarebbe x0
+
+            for tt in range(TT-1):
+                uu_temp[:,tt]=uu[:,tt] +Kt[:,:,tt]@(xx_temp[:,tt]-xx[:,tt]) + step*sigma_t[:,tt]
+                xx_temp[:,tt+1]=dyn.dynamics_casadi(xx_temp[:,tt],uu_temp[:,tt])[0]
+
+            costs[ii] = cost.cost_fcn(xx_temp,uu_temp,xx_ref,uu_ref)
+
+        plt.figure(1)
+        plt.clf()
+
+
+        plt.plot(steps, costs, color='g', label='$J(\\mathbf{u}^k - stepsize*d^k)$')
+        plt.plot(steps, J_old + descent_arm*steps, color='r', label='$J(\\mathbf{u}^k) - stepsize*\\nabla J(\\mathbf{u}^k)^{\\top} d^k$')
+        # plt.plot(steps, JJ - descent*steps, color='r', label='$J(\\mathbf{u}^k) - stepsize*\\nabla J(\\mathbf{u}^k)^{\\top} d^k$')
+        plt.plot(steps, J_old + c*descent_arm*steps, color='g', linestyle='dashed', label='$J(\\mathbf{u}^k) - stepsize*c*\\nabla J(\\mathbf{u}^k)^{\\top} d^k$')
+
+        plt.scatter(gamma_list, costs_armijo, marker='*') # plot the tested stepsize
+
+        plt.grid()
+        plt.xlabel('stepsize')
+        plt.legend()
+        plt.draw()
+
+        plt.show()
+
     return xx_new, uu_new, gamma, J_new

@@ -48,44 +48,6 @@ def find_equilibria(theta1_guess,theta2): #theta_2 fixed, theta1_guess
 
     return xx_eq,u_eq
 
-# --- Testing functions ---
-
-# xx_eq1,uu_eq1 = find_equilibria(xe1[0],xe1[1]) 
-# print(f"xx_eq1: {xx_eq1*180/np.pi}, uu_eq1: {uu_eq1*180/np.pi}")
-
-# xx_eq2, uu_eq2 = find_equilibria(xe2[0],xe2[1])
-# print(f"xx_eq2: {xx_eq2*180/np.pi}, uu_eq2: {uu_eq2*180/np.pi}")
-
-# def build_reference(xe1, xe2,ue1,ue2,TT):
-
-#     """
-#     this function create the state trajectory between the two equilbria.
-#     There are two constant parts, at the beginning and at the end. 
-#     It uses a 3rd order polynomial function to build the trajectory. 
-#     """
-#     xxref = np.zeros((ns, TT))
-#     uuref =np.zeros((ni,TT))
-#     margin = int(constant_traj*TT)
-    
-#     xxref[:,:margin] = xe1[:,None]
-
-#     if(ni==1):
-#         ue1 = np.atleast_1d(ue1)
-#         ue2 = np.atleast_1d(ue2)
-    
-#     uuref[:, :margin] = ue1[:, None]
-#     uuref[:, TT - margin:] = ue2[:, None]
-
-#     for kk in range(margin,TT-margin):
-#         s = (kk-margin)/((TT-2*margin)-1)
-#         alpha = 3*s**2 - 2*s**3 
-#         xxref[:,kk] = (1-alpha)*xe1 + alpha*xe2
-
-#     xxref[:,TT-margin:] = xe2[:,None]
-
-#     return xxref,uuref
-
-
 def build_smooth_ref(xe1, xe2, ue1, ue2, TT,constant_traj):
     '''Generates a smooth reference trajectory between tweo equilibria by using a 3rd ordet poly'''
     ns, ni = par.ns, par.ni
