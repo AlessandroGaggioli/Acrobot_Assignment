@@ -56,7 +56,10 @@ def backward_passing(xx, uu, xx_ref, uu_ref):
         p = Q_x + Q_ux.T @ sigma
         P = Q_xx + Q_ux.T @ K
 
-    return Kt, sigma_t, descent_arm
+        #Norm of descent direction
+        descent_norm = np.linalg.norm(sigma_t.flatten())
+
+    return Kt, sigma_t, descent_arm, descent_norm
 
 def armijo_search(xx, uu, xx_ref, uu_ref, Kt, sigma_t, J_old,descent_arm,plot=False):
     '''Backtracking line search to ensure sufficient cost reduction and maintain stability'''
@@ -136,5 +139,56 @@ def armijo_search(xx, uu, xx_ref, uu_ref, Kt, sigma_t, J_old,descent_arm,plot=Fa
         plt.draw()
 
         plt.show()
+    
+    armijo_data = {
+        'gamma_list': gamma_list,
+        'costs_armijo': costs_armijo,
+        'J_old': J_old,
+        'descent_arm': descent_arm,
+        'c': c
+    }
 
-    return xx_new, uu_new, gamma, J_new
+    return xx_new, uu_new, gamma, J_new, armijo_data
+
+def plot_armijo_iteration(xx, uu, xx_ref, uu_ref, Kt, sigma_t, armijo_data, newton_iter):
+    '''Plot Armijo line search for a specific Newton iteration'''
+    
+    TT = xx.shape[1]
+    J_old = armijo_data['J_old']
+    descent_arm = armijo_data['descent_arm']
+    c = armijo_data['c']
+    gamma_list = armijo_data['gamma_list']
+    costs_armijo = armijo_data['costs_armijo']
+    
+    # Compute full cost curve
+    steps = np.linspace(0, 1.0, int(2e1))
+    costs = np.zeros(len(steps))
+
+    for ii in range(len(steps)): 
+        step = steps[ii]
+        xx_temp = np.zeros((ns, TT))
+        uu_temp = np.zeros((ni, TT))
+        xx_temp[:,0] = xx[:,0]
+
+        for tt in range(TT-1):
+            uu_temp[:,tt] = uu[:,tt] + Kt[:,:,tt] @ (xx_temp[:,tt] - xx[:,tt]) + step * sigma_t[:,tt]
+            xx_temp[:,tt+1] = dyn.dynamics_casadi(xx_temp[:,tt], uu_temp[:,tt])[0]
+
+        costs[ii] = cost.cost_fcn(xx_temp, uu_temp, xx_ref, uu_ref)
+
+    # Plot
+    plt.figure(figsize=(8, 6))
+    
+    plt.plot(steps, costs, color='g', linewidth=2, label='$J(\\mathbf{u}^k - stepsize*d^k)$')
+    plt.plot(steps, J_old + descent_arm*steps, color='r', linewidth=2, label='$J(\\mathbf{u}^k) - stepsize*\\nabla J(\\mathbf{u}^k)^{\\top} d^k$')
+    plt.plot(steps, J_old + c*descent_arm*steps, color='g', linestyle='dashed', linewidth=2, label='$J(\\mathbf{u}^k) - stepsize*c*\\nabla J(\\mathbf{u}^k)^{\\top} d^k$')
+    
+    plt.scatter(gamma_list, costs_armijo, marker='*', s=150, c='blue', zorder=5, edgecolors='black', linewidths=0.5)
+    
+    plt.grid(True, alpha=0.3)
+    plt.xlabel('stepsize', fontsize=12)
+    plt.ylabel('Cost J', fontsize=12)
+    plt.title(f'Armijo Line Search - Newton Iteration {newton_iter}', fontsize=14)
+    plt.legend(fontsize=10)
+    plt.tight_layout()
+    plt.show()

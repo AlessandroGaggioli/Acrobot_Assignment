@@ -30,7 +30,8 @@ def animate_double_pendolum(xx_star, xx_ref, dt, title = 'Pendulum animation'):
       # Set up the figure and axis for the animation
       fig, ax = plt.subplots(figsize=(10,10))
       ax.set_xlim(-((par.l1 + par.l2)*1.05), ((par.l1 + par.l2)*1.05))  #limits based on length of the links
-      ax.set_ylim(-((par.l1 + par.l2)*1.05), ((par.l1 + par.l2)*1.05))
+      #ax.set_ylim(-((par.l1 + par.l2)*1.05), ((par.l1 + par.l2)*1.05))
+      ax.set_ylim(-((par.l1 + par.l2)*1.05), 0.5)
 
       # Plot elements
       # solid line ('o-'), dashed line ('o--'), lw=line width
