@@ -29,8 +29,9 @@ def animate_double_pendolum(xx_star, xx_ref, dt, title = 'Pendulum animation'):
 
       # Set up the figure and axis for the animation
       fig, ax = plt.subplots(figsize=(10,10))
-      ax.set_xlim(-((par.l1 + par.l2)*1.05), ((par.l1 + par.l2)*1.05))  #limits based on length of the links
+      #ax.set_xlim(-((par.l1 + par.l2)*1.05), ((par.l1 + par.l2)*1.05))  #limits based on length of the links
       #ax.set_ylim(-((par.l1 + par.l2)*1.05), ((par.l1 + par.l2)*1.05))
+      ax.set_xlim(-1.0,1.0) 
       ax.set_ylim(-((par.l1 + par.l2)*1.05), 0.5)
 
       # Plot elements
@@ -77,9 +78,6 @@ def animate_double_pendolum(xx_star, xx_ref, dt, title = 'Pendulum animation'):
             pendulum_line.set_data([0, x1_opt,x2_opt], [0, y1_opt,y2_opt]) # ([x-pivot, x-coordinate], .. )
             reference_line.set_data([0, x1_ref,x2_ref], [0, y1_ref,y2_ref])
             
-            
-
-
             # Update time text
             time_text.set_text(f'time = {frame*dt:.2f}s')
 

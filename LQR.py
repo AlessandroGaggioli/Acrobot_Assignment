@@ -5,6 +5,8 @@ import parameters as par
 
 ns, ni = par.ns, par.ni
 
+Q,R = par.Q,par.R
+
 def lqr(xx_ref, uu_ref):
     """
     Computes time-varying LQR gain matrices Kt along a reference trajectory 
@@ -14,7 +16,6 @@ def lqr(xx_ref, uu_ref):
     
     #Initialize cost-to-go Hessian with terminal cost weight
     P = cost.terminal_grad(xx_ref[:, -1], xx_ref[:, -1])[1]  #terminal cost
-
     
     Kt = np.zeros((ni, ns, TT-1))
 
@@ -24,7 +25,7 @@ def lqr(xx_ref, uu_ref):
         At = fx_T.T
         Bt = fu_T.T
 
-        _, _, Q, R = cost.stage_grad(xx_ref[:, kk], xx_ref[:, kk], uu_ref[:, kk], uu_ref[:, kk]) #weighting matrices from cost function
+        #_, _, Q, R = cost.stage_grad(xx_ref[:, kk], xx_ref[:, kk], uu_ref[:, kk], uu_ref[:, kk]) #weighting matrices from cost function
 
         #Algebraic Riccati eq, K = -(R + B.T * P * B)^-1 * B.T * P * A
         Q_uu = R + Bt.T @ P @ Bt

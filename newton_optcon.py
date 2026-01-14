@@ -179,9 +179,9 @@ def plot_armijo_iteration(xx, uu, xx_ref, uu_ref, Kt, sigma_t, armijo_data, newt
     # Plot
     plt.figure(figsize=(8, 6))
     
-    plt.plot(steps, costs, color='g', linewidth=2, label='$J(\\mathbf{u}^k - stepsize*d^k)$')
-    plt.plot(steps, J_old + descent_arm*steps, color='r', linewidth=2, label='$J(\\mathbf{u}^k) - stepsize*\\nabla J(\\mathbf{u}^k)^{\\top} d^k$')
-    plt.plot(steps, J_old + c*descent_arm*steps, color='g', linestyle='dashed', linewidth=2, label='$J(\\mathbf{u}^k) - stepsize*c*\\nabla J(\\mathbf{u}^k)^{\\top} d^k$')
+    plt.plot(steps, costs, color='g', linewidth=2, label='$J(\\mathbf{u}^k + stepsize*d^k)$')
+    plt.plot(steps, J_old + descent_arm*steps, color='r', linewidth=2, label='$J(\\mathbf{u}^k) + stepsize*\\nabla J(\\mathbf{u}^k)^{\\top} d^k$')
+    plt.plot(steps, J_old + c*descent_arm*steps, color='g', linestyle='dashed', linewidth=2, label='$J(\\mathbf{u}^k) + stepsize*c*\\nabla J(\\mathbf{u}^k)^{\\top} d^k$')
     
     plt.scatter(gamma_list, costs_armijo, marker='*', s=150, c='blue', zorder=5, edgecolors='black', linewidths=0.5)
     

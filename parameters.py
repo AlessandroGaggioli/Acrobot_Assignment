@@ -29,7 +29,13 @@ umax = 4
 theta2_start = np.radians(45)
 theta2_end = np.radians(-45)
 
+#Perturbation on initial condition 
+perturb = np.array([np.radians(5), np.radians(20), 0.0, 0.0])
+
 #Cost matrices
 Q = np.diag([10,10,1,1]) #weight on theta1, theta2, dtheta1, dtheta2 for stage cost
 R = np.array([[0.1]]) #weight on tau
 QT = np.diag([500,500,100,100]) #high terminal weight for terminal cost
+
+#MPC parameters
+T_pred = 10

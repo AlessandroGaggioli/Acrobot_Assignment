@@ -20,7 +20,7 @@ tasks_to_run = {
     1: False, #Newton - step reference
     2: False, #Newton - smooth reference 
     3: False, #LQR tracking
-    4: False, #MPC tracking
+    4: True, #MPC tracking
     5: False #animation
 }
 
@@ -34,7 +34,7 @@ os.makedirs('data',exist_ok=True)
 equilibria_file = 'data/equilibria.npy' #equilibria data filename
 
 max_iters = 50
-newton_threshold = 1e-3
+newton_threshold = 1e-7
 
 if tasks_to_run[0]:
 
@@ -81,11 +81,32 @@ if tasks_to_run[0]:
 
 #Equilibrium  points
 if tasks_to_run[1] or tasks_to_run[2]:
+
+    current_params = (par.theta2_start,par.theta2_end)
+
     if os.path.exists(equilibria_file):
         print(' ----- Loading equilibria from file -----')
         eq_data = np.load(equilibria_file, allow_pickle=True)
-        xx_eq1, xx_eq2 = eq_data[0], eq_data[1]
-        uu_eq1, uu_eq2 = eq_data[2][0], eq_data[3][0]
+
+        if len(eq_data)>4 and np.array_equal(eq_data[4],current_params):
+            xx_eq1, xx_eq2 = eq_data[0], eq_data[1]
+            uu_eq1, uu_eq2 = eq_data[2][0], eq_data[3][0]
+
+        else:
+            print('----- Parameters changed, recomputing equilibria -----')
+            os.path.exists(equilibria_file) and os.remove(equilibria_file)
+            
+            xe1 = np.array([0.0, par.theta2_start, 0.0, 0.0])
+            xe2 = np.array([0.0, par.theta2_end, 0.0, 0.0])
+
+            xx_eq1, uu_eq1 = task1.find_equilibria(xe1[0], xe1[1]) 
+            xx_eq2, uu_eq2 = task1.find_equilibria(xe2[0], xe2[1])
+
+            print(f"xx_eq1: {xx_eq1*180/np.pi}, uu_eq1: {uu_eq1}")
+            print(f"xx_eq2: {xx_eq2*180/np.pi}, uu_eq2: {uu_eq2}")
+
+            # Salva equilibri CON i parametri usati
+            np.save(equilibria_file, np.array([xx_eq1, xx_eq2, [uu_eq1], [uu_eq2], current_params], dtype=object))
     else: 
         print('----- Computing equilibria -----')
         xe1 = np.array([0.0, par.theta2_start, 0.0, 0.0])
@@ -154,7 +175,7 @@ if tasks_to_run[1]:
         xx_history.append(xx_opt)
         uu_history.append(uu_opt)
         
-        print(f"iteration: {i}, cost: {J_current:<10.2f}, step (gamma): {gamma:<10.4f}")
+        print(f"Newton iteration: {i}, cost: {J_current:<10.2f}, step (gamma): {gamma:<10.4f}, Armijo iterations: {len(armijo_data['gamma_list'])}")
         
         if i > 0 and abs(cost_history[-2] - J_current) < newton_threshold:
             #print("Convergerge ok")
@@ -204,13 +225,13 @@ if tasks_to_run[1]:
 
     for i in range(xx_ref.shape[0]):
         #Reference plot
-        axs[i].plot(t, xx_ref[i, :], 'r--', linewidth=1.5, label='Reference' if i == 0 else None)
+        axs[i].plot(t, np.degrees(xx_ref[i, :]), 'r--', linewidth=1.5, label='Reference' if i == 0 else None)
         
         #Plot of selected iterations
         for idx, it in enumerate(iters_to_plot):
             if it < len(xx_history):
                 label = f'Iteration {it}' if i == 0 else None
-                axs[i].plot(t, xx_history[it][i, :], color=colors[idx], 
+                axs[i].plot(t, np.degrees(xx_history[it][i, :]), color=colors[idx], 
                             linewidth=1.2, label=label)
         
         axs[i].set_ylabel(state_labels[i])
@@ -242,8 +263,8 @@ if tasks_to_run[1]:
 
     for i in range(xx_ref.shape[0]):
         #plot states
-        axs[i].plot(t, (xx_ref[i, :]), 'r--', linewidth=1.5, label=f'Reference')
-        axs[i].plot(t, (xx_opt[i, :]), 'b', linewidth=1.2, label=f'Optimal')
+        axs[i].plot(t, (np.degrees(xx_ref[i, :])), 'r--', linewidth=1.5, label=f'Reference')
+        axs[i].plot(t, (np.degrees(xx_opt[i, :])), 'b', linewidth=1.2, label=f'Optimal')
         axs[i].set_ylabel(state_labels[i])
         axs[i].grid(True, alpha=0.3)
         if i == 0:
@@ -286,7 +307,7 @@ if tasks_to_run[1]:
 ##############################################################
 if tasks_to_run[2]:
     print(" ----- Task 2 -----")
-    constant_traj = 0.10 
+    constant_traj = 0.05 
     #Generate smooth reference
     xx_ref, uu_ref = task1.build_smooth_ref(xx_eq1, xx_eq2, uu_eq1, uu_eq2, TT,constant_traj)
 
@@ -330,7 +351,7 @@ if tasks_to_run[2]:
         xx_history.append(xx_opt)
         uu_history.append(uu_opt)
 
-        print(f"iteration: {i}, cost: {J_current:<10.2f}, step (gamma): {gamma:<10.4f}")
+        print(f"Newton iteration: {i}, cost: {J_current:<10.2f}, step (gamma): {gamma:<10.4f}, Armijo iterations: {len(armijo_data['gamma_list'])}")
         
         if i > 0 and abs(cost_history[-2] - J_current) < newton_threshold:
             #print("Convergence ok")
@@ -381,13 +402,13 @@ if tasks_to_run[2]:
 
     for i in range(xx_ref.shape[0]):
         #Reference plot
-        axs[i].plot(t, xx_ref[i, :], 'r--', linewidth=1.5, label='Reference' if i == 0 else None)
+        axs[i].plot(t, np.degrees(xx_ref[i, :]), 'r--', linewidth=1.5, label='Reference' if i == 0 else None)
         
         #Plot of selected iterations
         for idx, it in enumerate(iters_to_plot):
             if it < len(xx_history):
                 label = f'Iteration {it}' if i == 0 else None
-                axs[i].plot(t, xx_history[it][i, :], color=colors[idx], 
+                axs[i].plot(t, np.degrees(xx_history[it][i, :]), color=colors[idx], 
                             linewidth=1.2, label=label)
         
         axs[i].set_ylabel(state_labels[i])
@@ -415,8 +436,8 @@ if tasks_to_run[2]:
     #labels = ['theta1', 'theta2', 'dtheta1', 'dtheta2']
     for i in range(xx_ref.shape[0]):
         plt.subplot(5, 1, i+1)
-        plt.plot(xx_ref[i, :], 'r--', label=f'Reference')
-        plt.plot(xx_opt[i, :], 'b', label=f'Optimal')
+        plt.plot(np.degrees(xx_ref[i, :]), 'r--', label=f'Reference')
+        plt.plot(np.degrees(xx_opt[i, :]), 'b', label=f'Optimal')
         axs[i].set_ylabel(state_labels[i])
         plt.grid()
         if i == 0:
@@ -476,7 +497,7 @@ if tasks_to_run[3]:
     Kt_lqr = LQR.lqr(xx_opt, uu_opt)
 
     #define an initial perturbation
-    xx0_perturbed = xx_opt[:, 0] + np.array([np.radians(5), np.radians(20), 0.0, 0.0])
+    xx0_perturbed = xx_opt[:, 0] + par.perturb
     perturbation = np.degrees(xx0_perturbed - xx_opt[:,0])
     print(f'Initial pertubation on theta1: {perturbation[0]:<10.2f}')
     print(f'Initial pertubation on theta2: {perturbation[1]:<10.2f}')
@@ -539,12 +560,33 @@ if tasks_to_run[4]:
     if not tasks_to_run[3]:
         xx0_perturbed = np.load('data/task3_xx0_perturbed.npy')
     
-    N_pred = 10
-    xx_mpc, uu_mpc = MPC.simulate_mpc(xx0_perturbed, xx_opt, uu_opt, N_pred) #simulation MPC
-
-    # Save results
-    np.save('data/task4_xx_mpc.npy', xx_mpc)
-    np.save('data/task4_uu_mpc.npy', uu_mpc)
+    #MPC parameters
+    T_sim = TT 
+    T_pred = par.T_pred
+    
+    #simulate mpc 
+    xx_mpc, uu_mpc = MPC.simulate_mpc(
+        xx_init=xx0_perturbed,           # Stato iniziale perturbato
+        xx_ref=xx_opt,          # Traiettoria di riferimento (stati ottimi)
+        uu_ref=uu_opt,          # Controlli di riferimento (controlli ottimi)
+        T_sim=T_sim,                # Passi di simulazione
+        T_pred=T_pred,              # Orizzonte MPC
+        verbose=True                # Mostra progresso
+    )
+    
+    if xx_mpc is not None and uu_mpc is not None:
+        print("MPC simulation completed successfully!")
+        
+        # Save results
+        np.save('data/task4_xx_mpc.npy', xx_mpc)
+        np.save('data/task4_uu_mpc.npy', uu_mpc)
+        
+        #Tracking error 
+        tracking_error = np.linalg.norm(xx_mpc - np.hstack([xx_opt, xx_opt[:, -1:]]), axis=0)
+        print(f"Average tracking error: {np.mean(tracking_error):.4f}")
+        print(f"Max tracking error: {np.max(tracking_error):.4f}")
+    else:
+        print("ERROR: MPC simulation failed!")
 
     #Plot for MPC
     t = np.arange(TT) * par.dt
@@ -556,7 +598,7 @@ if tasks_to_run[4]:
 
     for i in range(xx_ref.shape[0]):
         axs[i].plot(t, np.degrees(xx_opt[i, :]), 'r--', label='Optimal traj')
-        axs[i].plot(t, np.degrees(xx_mpc[i, :]), 'b', label='MPC tracking')
+        axs[i].plot(t, np.degrees(xx_mpc[i, :-1]), 'b', label='MPC tracking')
         axs[i].set_ylabel(f"{state_labels[i]}")
         axs[i].grid(True)
         axs[i].legend(loc='best')
@@ -570,10 +612,10 @@ if tasks_to_run[4]:
     axs[4].grid(True)
     axs[4].legend(loc='best')
 
-    plt.suptitle(f"MPC Results (N_pred = {N_pred})", fontsize=14)
+    plt.suptitle(f"MPC Results (N_pred = {par.T_pred})", fontsize=14)
     plt.tight_layout(rect = [0,0,1,0.97])
     plt.show()
-    animation.animate_double_pendolum(np.degrees(xx_mpc), np.degrees(xx_opt), dt, title='Task 4: MPC Animation')
+    animation.animate_double_pendolum(np.degrees(xx_mpc[:,:-1]), np.degrees(xx_opt), dt, title='Task 4: MPC Animation')
 
 ##############################################################
 # END TASK 4 
