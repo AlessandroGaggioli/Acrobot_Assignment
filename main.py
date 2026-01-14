@@ -18,8 +18,8 @@ import os
 tasks_to_run = {
     0: False, #Test dynamics 
     1: False, #Newton - step reference
-    2: False, #Newton - smooth reference 
-    3: False, #LQR tracking
+    2: True, #Newton - smooth reference 
+    3: True, #LQR tracking
     4: True, #MPC tracking
     5: False #animation
 }

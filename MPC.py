@@ -10,140 +10,132 @@ ni = par.ni
 
 def mpc_solver(x_t,x_ref_horizon,u_ref_horizon,T_pred):
 
-    #Linearization around current reference point
-    #Get A and B matrices from the reference trajectory
-    # _, fx, fu = dyn.dynamics_casadi(x_ref_horizon[:, 0], u_ref_horizon[:, 0])
-    # A = ca.DM(fx.T)
-    # B = ca.DM(fu.T)
-
+    #cost parameters
     Q = ca.DM(par.Q)
     R = ca.DM(par.R)
     QT = ca.DM(par.QT)
-    x_t = np.array(x_t).squeeze()
+    #x_t = np.array(x_t).squeeze()
 
+    # opti object 
     opti = ca.Opti()
-    X = opti.variable(ns,T_pred)
+
+    #optimization variables 
+    X = opti.variable(ns,T_pred+1)
     U = opti.variable(ni,T_pred)
 
     cost = 0
 
-    for tt in range(T_pred-1):
-        xt = X[:,tt]
-        ut = U[:,tt]
+    #initial condition 
+    opti.subject_to(X[:,0]==x_t)
 
-        x_ref = ca.DM(x_ref_horizon[:, tt])
-        u_ref = ca.DM(u_ref_horizon[:, tt])
+    for tt in range(T_pred):
 
-        _, fx, fu = dyn.dynamics_casadi(x_ref_horizon[:, tt], u_ref_horizon[:, tt])
+        # reference at iteration tt 
+        x_ref = x_ref_horizon[:, tt]
+        u_ref = u_ref_horizon[:, tt]
+        x_ref_next = x_ref_horizon[:,tt+1]
+
+        #Linearization around ref traj 
+        #A,B matrices 
+        _, fx, fu = dyn.dynamics_casadi(x_ref,u_ref)
         A = ca.DM(fx.T)
         B = ca.DM(fu.T)
 
-        x_err = xt - x_ref
-        u_err = ut - u_ref
+        #affine term for linearization: d = x_ref - A*x_ref + B*u_ref)
+        #This ensures that if we are exactly on the reference, the error is zero
+        affine = x_ref_next - ca.mtimes(A,x_ref)-ca.mtimes(B,u_ref)
+
+        #Stage cost 
+        x_err = X[:,tt]- x_ref #error on x 
+        u_err = U[:,tt] - u_ref #error on u 
 
         cost += ca.mtimes([x_err.T, Q, x_err]) + ca.mtimes([u_err.T, R, u_err])
 
-        # x_ref_next = ca.DM(x_ref_horizon[:, tt + 1])
-        # opti.subject_to(X[:, tt + 1] == A @ xt + B @ ut + (x_ref_next - A @ x_ref - B @ u_ref))
+        #dynamics constraints: x_{tt+1} ) A*x+B*u+d
+        opti.subject_to(X[:, tt+1] == ca.mtimes(A, X[:, tt]) + ca.mtimes(B, U[:, tt]) + affine)
 
-        x_next_nominal, _, _ = dyn.dynamics_casadi(x_ref, u_ref)
-        opti.subject_to(X[:, tt + 1] == A @ (xt - x_ref) + B @ (ut - u_ref) + ca.DM(x_next_nominal))
+        #input constraints 
+        opti.subject_to(opti.bounded(par.umin, U[:, tt], par.umax))
 
     #terminal cost
-    x_err_final = X[:, T_pred - 1] - ca.DM(x_ref_horizon[:, T_pred - 1])
+    x_err_final = X[:, T_pred] - x_ref_horizon[:, T_pred]
     cost += ca.mtimes([x_err_final.T, QT, x_err_final])
 
-    #initial condition
-    opti.subject_to(X[:,0]==ca.DM(x_t))
-
+    #minimize the cost function 
     opti.minimize(cost)
 
     #solver configuration 
     ipopt_opts = {
         "ipopt.print_level": 0, 
         "print_time": 0, 
-        "ipopt.max_iter": 1000,
-        "ipopt.tol": 1e-6
+        "ipopt.max_iter": 100,
+        "ipopt.sb":"yes"
     }
     opti.solver("ipopt", ipopt_opts)
 
     try: 
         sol = opti.solve()
+
+        #return the first optimal input and predictions for plotting 
+        u_opt=sol.value(U[:,0])
+        x_pred = sol.value(X)
+        return np.array(u_opt).flatten(),x_pred,None
     except RuntimeError: 
-        opti.set_initial(X,x_ref_horizon)
-        opti.set_initial(U,u_ref_horizon)
-        try: 
-            sol = opti.solve()
-        except Exception as e: 
-            print("mpc_solver: solver failed",e)
-            return None,None,None
+        return np.array(u_ref_horizon[:,0]).flatten(),None,None
 
-    u_t = np.asarray(sol.value(U[:, 0]))
-    x_pred = np.asarray(sol.value(X))
-    u_pred = np.asarray(sol.value(U))
-
-    return u_t, x_pred, u_pred
-
-def simulate_mpc(xx_init,xx_ref,uu_ref,T_sim,T_pred,verbose=False,save_predictions=False):
+def simulate_mpc(xx_init,xx_ref,uu_ref,T_sim,T_pred,verbose=False):
     
     xx_mpc = np.zeros((ns,T_sim+1))
     uu_mpc = np.zeros((ni,T_sim))
 
-    predictions = [] if save_predictions else None 
-
     xx_mpc[:,0] = xx_init
 
-    solve_failures = 0
-    solve_times = []
+    print(f"Starting MPC Simulation (Horizon={T_pred}...)")
 
     for tt in range(T_sim):
-        if verbose and tt%10==0:
-            print(f"Step {tt}/{T_sim}")
 
-            x_t = xx_mpc[:,tt]
+        x_t = xx_mpc[:,tt]
 
-            hor_len = min(T_pred,T_sim-tt)
+        #It requires to supply always T_pred future steps
+        #So if it's near the end, pad with the last reference state (equilibrium)
 
-            if tt+hor_len <= T_sim: 
-                x_ref_horizon = xx_ref[:,tt:tt+hor_len]
-                u_ref_horizon = uu_ref[:,tt:tt+hor_len]
-            else: 
-                remaining = T_sim -tt
-                x_ref_horizon = np.hstack([
-                    xx_ref[:,tt:],
-                    np.tile(xx_ref[:,-1:],(1,hor_len-remaining))
-                ])
-                uu_ref = np.hstack([
-                    uu_ref[:,tt:],
-                    np.tile(uu_ref[:,-1:],(1,hor_len-remaining))
-                ])
+        idx_start = tt
+        idx_end = tt + T_pred
 
-                u_opt,x_pred,u_pred = mpc_solver(x_t,x_ref_horizon,u_ref_horizon,hor_len)
+        steps = xx_ref.shape[1] - idx_start
 
-                if u_opt is None: 
-                    solve_failures += 1 
-                    if verbose: 
-                        print(f"Warning: MPC solver failed at tt={tt}")
-                    u_opt = uu_ref[:,tt]
-                    x_pred = None 
-                    u_pred = None
+        if steps > T_pred: 
+            #it has enough future reference 
+            x_ref_horizon = xx_ref[:,idx_start:idx_end+1]
+            u_ref_horizon = uu_ref[:,idx_start:idx_end]
 
-                if save_predictions: 
-                    predictions.append((x_pred,u_pred))
+        else: #pad with the last reference value --- da capire...
+            x_chunk = xx_ref[:,idx_start:]
+            u_chunk = uu_ref[:,idx_start:]
 
-                uu_mpc[:,tt] = u_opt.flatten()
+            steps_miss = (T_pred+1)-x_chunk.shape[1]
 
-                xx_next,_,_ = dyn.dynamics_casadi(x_t,u_opt)
-                xx_mpc[:,tt+1] = xx_next 
-    if verbose: 
-        print(f"\nSimulation completed\n")
-        print(f"Total steps: {T_sim}")
-        print(f"Solver failures: {solve_failures}")
+            x_pad = np.tile(xx_ref[:,-1:],(1,steps_miss))
+            u_pad = np.tile(uu_ref[:,-1:],(1,steps_miss))
+            u_miss = T_pred - u_chunk.shape[1]
+            u_pad = np.tile(uu_ref[:, -1:], (1, u_miss))
 
-    if save_predictions: 
-        return xx_mpc,uu_mpc,predictions
-    else: 
-        return xx_mpc,uu_mpc
+            x_ref_horizon = np.hstack([x_chunk, x_pad])
+            u_ref_horizon = np.hstack([u_chunk, u_pad])
+        
+        #Solve MPC
+        u_opt,_,_ = mpc_solver(x_t,x_ref_horizon,u_ref_horizon,T_pred)
+
+        #Save and apply input 
+        uu_mpc[:,tt] = u_opt
+
+        xx_next,_,_ = dyn.dynamics_casadi(x_t,u_opt)
+        xx_mpc[:,tt+1] = xx_next
+
+        if verbose and tt%50==0:
+            print(f"Step{tt}/{T_sim}")
+        
+    return xx_mpc,uu_mpc
 
 
 # def mpc_solver(x_t, x_ref_horizon, u_ref_horizon, T_pred):
