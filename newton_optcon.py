@@ -5,61 +5,112 @@ import parameters as par
 import matplotlib.pyplot as plt
 
 ns, ni = par.ns, par.ni
-max_iters = 25
+max_iters = par.Armjio_max_iters
 
 def backward_passing(xx, uu, xx_ref, uu_ref):
-    '''Riccati recursion to find optimal fb gain Kt and ff sigma_t for Newton step'''
-    TT = xx.shape[1]
-
-    #Initialize terminal costs, boundary conditions for Riccati
-    gx_T, Gxx_T = cost.terminal_grad(xx[:, -1], xx_ref[:, -1]) 
-    P, p = Gxx_T, gx_T 
+    """
+    Backward pass: Riccati recursion to compute gains K_t and feedforward sigma_t
     
+    Args:
+        xx: current state trajectory (ns, TT)
+        uu: current input trajectory (ni, TT)
+        xx_ref: reference state trajectory (ns, TT)
+        uu_ref: reference input trajectory (ni, TT)
+    
+    Returns:
+        Kt: feedback gains (ni, ns, TT-1)
+        sigma_t: feedforward terms (ni, TT-1)
+        descent_norm: norm of sigma for convergence check
+    """
+    
+    ns, TT = xx.shape
+    ni = uu.shape[0]
+
+    descent_arm = 0 
+    
+    # Initialize arrays for gains and feedforward
     Kt = np.zeros((ni, ns, TT-1))
     sigma_t = np.zeros((ni, TT-1))
-
-    descent_arm = 0.0 
-
-    #Backward recursion from terminal to init time
-    for kk in range(TT-2, -1, -1):
-        #Linearize dynamics at current trajectoy point
-        _, fx_T, fu_T = dyn.dynamics_casadi(xx[:, kk], uu[:, kk]) #fx_T, fu_T are the transpose of state and input Jacobians
+    
+    # Initialize P and p for backward recursion
+    # Terminal cost derivatives
+    lx_T, QT = cost.terminal_grad(xx[:, -1], xx_ref[:, -1])
+    
+    PT = QT
+    pt = lx_T.flatten()
+    
+    # Backward recursion (from T-1 to 0)
+    for tt in range(TT-2, -1, -1):
         
-        At = fx_T.T #(4,4)
-        Bt = fu_T.T # 4,1)
+        # Get dynamics at current point
+        _, fx, fu = dyn.dynamics_casadi(xx[:, tt], uu[:, tt])
+        At = fx.T  # (ns, ns)
+        Bt = fu.T  # (ns, ni)
         
-        #Quadratic stage cost
-        qx, ru, Qxx, Ruu = cost.stage_grad(xx[:, kk], xx_ref[:, kk], uu[:, kk], uu_ref[:, kk])
-
-        #Q-function expansion
-        Q_x = qx + At.T @ p
-        Q_u = ru + Bt.T @ p
-
-        Q_xx = Qxx + At.T @ P @ At
-        Q_uu = Ruu + Bt.T @ P @ Bt
-        Q_ux = Bt.T @ P @ At
-
-        #Optimal gains by inverting the input Hessian
-        invQ_uu = np.linalg.inv(Q_uu)
+        # Get cost derivatives at current point
+        lx, lu, Qtt, Rtt = cost.stage_grad(xx[:, tt], xx_ref[:, tt], 
+                                            uu[:, tt], uu_ref[:, tt])
         
-        K = -invQ_uu @ Q_ux #fb gain matrix
-        sigma = -invQ_uu @ Q_u #ff step
+        qt = lx.flatten()
+        rt = lu.flatten()
         
-        #Store results
-        Kt[:, :, kk] = K
-        sigma_t[:, kk] = sigma.flatten() 
-
-        #Accumulate descent direction: descent_arm = Q_u^T * sigma
-        descent_arm += Q_u.T @sigma
+        # Compute Q, R, S matrices (second order terms)
+        # For now, we use only the cost Hessian (regularization strategy)
+        # Q_t includes dynamics contribution would be: Qtt + fx.T @ PT @ fx
+        # For simplicity and numerical stability, we start with cost Hessian only
         
-        #Update for previous time step
-        p = Q_x + Q_ux.T @ sigma
-        P = Q_xx + Q_ux.T @ K
+        Qt = Qtt  # (ns, ns)
+        Rt = Rtt  # (ni, ni)
+        St = np.zeros((ni, ns))  # Cross term (usually zero for our cost)
+        
+        # Riccati recursion terms
+        # K_t = -(R_t + B^T P_{t+1} B)^{-1} (S_t + B^T P_{t+1} A)
+        # σ_t = -(R_t + B^T P_{t+1} B)^{-1} (r_t + B^T p_{t+1})
+        
+        BT_P_B = Bt.T @ PT @ Bt
+        BT_P_A = Bt.T @ PT @ At
 
-        #Norm of descent direction
-        descent_norm = np.linalg.norm(sigma_t.flatten())
+        grad_J_u = rt + Bt.T @ pt
+        
+        # Compute regularized R matrix
+        R_reg = Rt + BT_P_B
+        
+        # Add small regularization for numerical stability
+        epsilon = 1e-6
+        R_reg += epsilon * np.eye(ni)
+        
+        # Compute gain K_t
+        try:
+            R_inv = np.linalg.inv(R_reg)
+        except np.linalg.LinAlgError:
+            print(f"Warning: Singular matrix at t={tt}, using pseudo-inverse")
+            R_inv = np.linalg.pinv(R_reg)
+        
+        Kt[:, :, tt] = -R_inv @ (St + BT_P_A)
+        
+        # Compute feedforward σ_t
+        sigma_t[:, tt] = -R_inv @ (rt + Bt.T @ pt)
 
-    return Kt, sigma_t, descent_arm, descent_norm
+        descent_arm += grad_J_u @ sigma_t[:,tt]
+        
+        # Update P and p for next iteration (going backward)
+        # p_t = q_t + A^T p_{t+1} - K_t^T (R_t + B^T P_{t+1} B) σ_t
+        # P_t = Q_t + A^T P_{t+1} A - K_t^T (R_t + B^T P_{t+1} B) K_t
+        
+        AT_p = At.T @ pt
+        AT_P_A = At.T @ PT @ At
+        
+        KT_R_sigma = Kt[:, :, tt].T @ R_reg @ sigma_t[:, tt]
+        KT_R_K = Kt[:, :, tt].T @ R_reg @ Kt[:, :, tt]
+        
+        pt = qt + AT_p - KT_R_sigma
+        PT = Qt + AT_P_A - KT_R_K
+    
+    # Compute norm of sigma for convergence check
+    descent_norm = np.linalg.norm(sigma_t)
+    
+    return Kt, sigma_t,descent_arm, descent_norm
+
 
 def armijo_search(xx, uu, xx_ref, uu_ref, Kt, sigma_t, J_old,descent_arm,plot=False):
     '''Backtracking line search to ensure sufficient cost reduction and maintain stability'''
@@ -69,7 +120,6 @@ def armijo_search(xx, uu, xx_ref, uu_ref, Kt, sigma_t, J_old,descent_arm,plot=Fa
     c = 0.5    #armijo tolerance
 
     TT = xx.shape[1]
-    descent_arm = float(np.squeeze(descent_arm))
     gamma_list = [] 
     costs_armijo=[]
 
@@ -80,14 +130,14 @@ def armijo_search(xx, uu, xx_ref, uu_ref, Kt, sigma_t, J_old,descent_arm,plot=Fa
         xx_new[:, 0] = xx[:, 0] #start from initial state
         
         #Fwd pass: NL simulation with new control law
-        for kk in range(xx.shape[1]-1):
+        for kk in range(TT-1):
             uu_new[:, kk] = uu[:, kk] + Kt[:,:,kk] @ (xx_new[:, kk] - xx[:, kk]) + gamma * sigma_t[:, kk]
             xx_new[:, kk+1] = dyn.dynamics_casadi(xx_new[:, kk], uu_new[:, kk])[0]
             
         #Evaluate total cost of new trajectory    
         J_new = cost.cost_fcn(xx_new, uu_new, xx_ref, uu_ref)
 
-        #print(f"descent_arm: {descent_arm},J_new:{J_new},J_old + c * gamma * descent_arm:{J_old + c * gamma * descent_arm}")
+        #print(f"J_new:{J_new},J_old + c * gamma * descent_arm:{J_old + c * gamma * descent_arm}")
         
         gamma_list.append(gamma)
         costs_armijo.append(J_new)

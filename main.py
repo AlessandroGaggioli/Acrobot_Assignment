@@ -18,7 +18,7 @@ import os
 tasks_to_run = {
     0: False, #Test dynamics 
     1: False, #Newton - step reference
-    2: True, #Newton - smooth reference 
+    2: False, #Newton - smooth reference 
     3: True, #LQR tracking
     4: True, #MPC tracking
     5: False #animation
@@ -33,8 +33,8 @@ TT = int(tf/dt)
 os.makedirs('data',exist_ok=True)
 equilibria_file = 'data/equilibria.npy' #equilibria data filename
 
-max_iters = 50
-newton_threshold = 1e-7
+max_iters = par.Newton_max_iters
+newton_threshold = par.newton_threshold
 
 if tasks_to_run[0]:
 
@@ -161,7 +161,7 @@ if tasks_to_run[1]:
         cost_history.append(J_current)
         
         #Riccati, backward pass
-        Kt, sigma_t, descent_arm, descent_norm = newton_optcon.backward_passing(xx_opt, uu_opt, xx_ref, uu_ref)
+        Kt, sigma_t, descent_arm,descent_norm = newton_optcon.backward_passing(xx_opt, uu_opt, xx_ref, uu_ref)
         descent_norm_history.append(descent_norm)
 
         #Save for later plotting
@@ -169,7 +169,7 @@ if tasks_to_run[1]:
         sigma_t_history.append(sigma_t.copy())
         
         #Fwd armijo
-        xx_opt, uu_opt, gamma, J_new, armijo_data = newton_optcon.armijo_search(xx_opt, uu_opt, xx_ref, uu_ref, Kt, sigma_t, J_current, descent_arm)
+        xx_opt, uu_opt, gamma, J_new, armijo_data = newton_optcon.armijo_search(xx_opt, uu_opt, xx_ref, uu_ref, Kt, sigma_t, J_current,descent_arm)
 
         armijo_data_history.append(armijo_data)
         xx_history.append(xx_opt)
@@ -242,7 +242,7 @@ if tasks_to_run[1]:
     #Control input plot for the iterations
     for idx, it in enumerate(iters_to_plot):
         if it < len(uu_history):
-            axs[4].plot(t, uu_history[it][0, :], color=colors[idx], 
+            axs[4].plot(t[:-1], uu_history[it][0, :-1], color=colors[idx], 
                         linewidth=1.2, label=f'Iteration {it}')
 
     axs[4].set_ylabel(r'$\tau$ [Nm]')
@@ -271,7 +271,7 @@ if tasks_to_run[1]:
             axs[i].legend(loc='upper right')
 
     #Plot control input
-    axs[4].plot(t, uu_opt[0, :], 'g', linewidth=1.5, label='Optimal input')
+    axs[4].plot(t[:-1], uu_opt[0, :-1], 'g', linewidth=1.5, label='Optimal input')
     axs[4].set_ylabel(r'$\tau$ [Nm]')
     axs[4].set_xlabel("Time [s]")
     axs[4].grid(True, alpha=0.3)
@@ -419,7 +419,7 @@ if tasks_to_run[2]:
     #Control input plot for the iterations
     for idx, it in enumerate(iters_to_plot):
         if it < len(uu_history):
-            axs[4].plot(t, uu_history[it][0, :], color=colors[idx], 
+            axs[4].plot(t[:-1], uu_history[it][0, :-1], color=colors[idx], 
                         linewidth=1.2, label=f'Iteration {it}')
 
     axs[4].set_ylabel(r'$\tau$ [Nm]')
@@ -528,8 +528,8 @@ if tasks_to_run[3]:
             axs[i].legend(loc='best')
 
     #Plot control input
-    axs[4].plot(uu_opt[0, :], 'r--', linewidth=1.5, label='Optimal input')
-    axs[4].plot(uu_lqr[0, :], 'g', linewidth=1.2, label='LQR input')
+    axs[4].plot(uu_opt[0, :-1], 'r--', linewidth=1.5, label='Optimal input')
+    axs[4].plot(uu_lqr[0, :-1], 'g', linewidth=1.2, label='LQR input')
     axs[4].axhline(y=par.umax, color='k', linestyle='--', label='Input constraints')
     axs[4].axhline(y=par.umin, color='k', linestyle='--')
     axs[4].set_ylabel(r'$\tau$ [Nm]')
@@ -603,8 +603,8 @@ if tasks_to_run[4]:
         axs[i].grid(True)
         axs[i].legend(loc='best')
 
-    axs[4].plot(t, uu_opt[0, :], 'g--', label='Optimal input')
-    axs[4].plot(t, uu_mpc[0, :], 'b', label='MPC input')
+    axs[4].plot(t[:-1], uu_opt[0, :-1], 'g--', label='Optimal input')
+    axs[4].plot(t[:-1], uu_mpc[0, :-1], 'b', label='MPC input')
     axs[4].axhline(y=par.umax, color='k', linestyle='--', label='Input constraints')
     axs[4].axhline(y=par.umin, color='k', linestyle='--')
     axs[4].set_ylabel(r'$\tau$ [Nm]')

@@ -20,17 +20,20 @@ ni = 1 # number of inputs [tau] (torque applied at joint 2)
 # simulation parameters
 dt = 0.01       # time step (s) #da abbassare 0.01 o 0.001
 tf = 5          # simulation time (s)
+Newton_max_iters = 50
+newton_threshold = 1e-7
+Armjio_max_iters = 25
 
 #Input constraints (for MPC simulation)
-umin = -5
-umax = 4
+umin = -2
+umax = 2
 
 #Imposed theta2 angles
-theta2_start = np.radians(45)
-theta2_end = np.radians(-45)
+theta2_start = np.radians(0)
+theta2_end = np.radians(45)
 
 #Perturbation on initial condition 
-perturb = np.array([np.radians(5), np.radians(20), 0.0, 0.0])
+perturb = np.array([np.radians(1), np.radians(1), 0.0, 0.0])
 
 #Cost matrices
 Q = np.diag([10,10,1,1]) #weight on theta1, theta2, dtheta1, dtheta2 for stage cost
