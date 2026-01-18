@@ -253,6 +253,19 @@ def plot_MPC(TT,xx_ref,xx_opt,xx_mpc,uu_opt,uu_mpc):
     axs[4].grid(True)
     axs[4].legend(loc='best')
 
-    plt.suptitle(f"MPC Results (N_pred = {par.T_pred})", fontsize=14)
+    plt.suptitle(f"Task 4: Trajectory Tracking via MPC (N_pred = {par.T_pred})", fontsize=14)
     plt.tight_layout(rect = [0,0,1,0.97])
+    plt.show()
+
+    #Plot tracking error 
+    track_error = np.linalg.norm(xx_mpc[:,:-1] - xx_opt,axis=0)
+    
+    plt.figure(figsize=(10,6))
+    plt.semilogy(t,track_error,linewidth=2,color='green',label='MPC Tracking Error')
+    plt.xlabel('Time [s]',fontsize=2)
+    plt.ylabel(r'Tracking Error $\|x_{MPC} - x_{ref}\|$', fontsize=12)
+    plt.title(f'Task 4: MPC Tracking Error (N_pred) = {par.T_pred})',fontsize=14)
+    plt.grid(True,which='both',alpha=0.3)
+    plt.legend(fontsize=1)
+    plt.tight_layout()
     plt.show()

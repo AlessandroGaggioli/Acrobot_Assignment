@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import cost
 import newton_optcon
 
-def newton_loop(xx_ref,uu_ref,xx_eq1,uu_eq1,max_iters,newton_threshold,descent_norm_threshold,Armijo_Plot): 
+def newton_loop(xx_ref,uu_ref,xx_eq1,uu_eq1,max_iters,newton_threshold,descent_norm_threshold,Armijo_Plot,task): 
     #Newton loop
     xx_opt = np.zeros_like(xx_ref)
     xx_opt[:,:] = xx_eq1[:,np.newaxis]
@@ -99,12 +99,13 @@ def newton_loop(xx_ref,uu_ref,xx_eq1,uu_eq1,max_iters,newton_threshold,descent_n
                 Kt_history[iter_idx],
                 sigma_t_history[iter_idx],
                 armijo_data_history[iter_idx],
-                iter_idx
+                iter_idx,
+                task
             )
     return xx_opt, uu_opt, gamma, J_new, armijo_data, history
 
-def newton_plot(TT,xx_history,xx_ref,uu_history,xx_opt,uu_opt,cost_history,descent_norm_history):
-    #plot the theta1, theta2, dtheta1, dtheta2, tau for task 2
+def newton_plot(TT,xx_history,xx_ref,uu_history,xx_opt,uu_opt,cost_history,descent_norm_history,task):
+    
     t = np.arange(TT) * par.dt
     state_labels = [r'$\theta_1$ [rad]', r'$\theta_2$ [rad]', 
                     r'$\dot{\theta}_1$ [rad/s]', r'$\dot{\theta}_2$ [rad/s]']
@@ -143,13 +144,12 @@ def newton_plot(TT,xx_history,xx_ref,uu_history,xx_opt,uu_opt,cost_history,desce
     axs[4].grid(True, alpha=0.3)
     axs[4].legend(loc='best', ncol=2, fontsize='small')
 
-    plt.suptitle("Task 2: Optimal trajectory evolution", fontsize=16)
+    plt.suptitle(f"Task {task}: Optimal trajectory evolution", fontsize=16)
     plt.show()
 
     fig, axs = plt.subplots(5, 1, figsize=(10, 15), sharex=True)
     plt.subplots_adjust(hspace=0.3)
 
-    #labels = ['theta1', 'theta2', 'dtheta1', 'dtheta2']
     for i in range(xx_ref.shape[0]):
         plt.subplot(5, 1, i+1)
         plt.plot(np.degrees(xx_ref[i, :]), 'r--', label=f'Reference')
@@ -164,13 +164,13 @@ def newton_plot(TT,xx_history,xx_ref,uu_history,xx_opt,uu_opt,cost_history,desce
     axs[4].set_ylabel(r'$\tau$ [Nm]')
     axs[4].set_xlabel('Time [s]')
     plt.legend(); plt.grid()
-    plt.suptitle('Task 2: Smooth ref and Newton optimization', fontsize=14)
+    plt.suptitle(f"Task {task}: Smooth ref and Newton optimization", fontsize=14)
     plt.show()
 
     # Cost evolution 
     plt.figure()
     plt.semilogy(cost_history, 'o-', color='b', markersize=4)
-    plt.title("Cost Evolution - Task 2")
+    plt.title(f"Cost Evolution - Task {task}")
     plt.xlabel("Iterations")
     plt.ylabel("Total Cost J")
     plt.grid(True, which="both", alpha=0.3)
@@ -179,7 +179,7 @@ def newton_plot(TT,xx_history,xx_ref,uu_history,xx_opt,uu_opt,cost_history,desce
     # Norm of descent direction 
     plt.figure()
     plt.semilogy(descent_norm_history, 'o-', color='r', markersize=4)
-    plt.title("Norm of Descent Direction - Task 2")
+    plt.title(f"Norm of Descent Direction - Task {task}")
     plt.xlabel("Iterations")
     plt.ylabel(r"$\|\sigma\|$")
     plt.grid(True, which="both", alpha=0.3)

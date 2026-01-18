@@ -15,7 +15,7 @@ import signal
 signal.signal(signal.SIGINT, signal.SIG_DFL)
 import os
 
-
+task = 0
 tasks_to_run = par.tasks_to_run 
 Armijo_Plot = par.Armijo_Plot
 ns, ni, dt, tf = par.ns, par.ni, par.dt, par.tf
@@ -29,7 +29,7 @@ equilibria_file = 'data/equilibria.npy' #equilibria data filename
 
 if tasks_to_run[0]:
     # ---------- TASK 0 ---------
-    print(' ----- Task 0 -----')
+    print('\n----- Task 0 -----\n')
     Test_Dynamics.test_dynamics(TT,ns,ni,dt)
 
 #Equilibrium  points
@@ -44,12 +44,14 @@ if tasks_to_run[1] or tasks_to_run[2]:
 
 if tasks_to_run[1]:
 
-    print(' ----- Task 1 -----')
+    print('\n----- Task 1 -----\n')
+    par.set_cost_matrices('default')
+    task = 1 
     constant_traj = 0.50
 
     xx_ref,uu_ref = task1.build_smooth_ref(xx_eq1, xx_eq2,uu_eq1,uu_eq2, TT, constant_traj)
 
-    xx_opt, uu_opt, gamma, J_new, armijo_data, history = Newton_Loop.newton_loop(xx_ref,uu_ref,xx_eq1,uu_eq1,max_iters,newton_threshold,descent_norm_threshold,Armijo_Plot)
+    xx_opt, uu_opt, gamma, J_new, armijo_data, history = Newton_Loop.newton_loop(xx_ref,uu_ref,xx_eq1,uu_eq1,max_iters,newton_threshold,descent_norm_threshold,Armijo_Plot,task)
 
     cost_history= history['cost_history']
     armijo_data_history = history['armijo_data_history']
@@ -63,7 +65,7 @@ if tasks_to_run[1]:
     np.save('data/task1_xx_ref.npy', xx_ref)
     np.save('data/task1_uu_ref.npy', uu_ref)
 
-    Newton_Loop.newton_plot(TT,xx_history,xx_ref,uu_history,xx_opt,uu_opt,cost_history,descent_norm_history)
+    Newton_Loop.newton_plot(TT,xx_history,xx_ref,uu_history,xx_opt,uu_opt,cost_history,descent_norm_history,task)
 
 ##############################################################
 # END TASK 1 
@@ -73,13 +75,15 @@ if tasks_to_run[1]:
 # START TASK 2
 ##############################################################
 if tasks_to_run[2]:
-    print(" ----- Task 2 -----")
+    print("\n----- Task 2 -----\n")
+    par.set_cost_matrices('default')
+    task = 2 
     constant_traj = 0.05 
     #Generate smooth reference
     xx_ref, uu_ref = task1.build_smooth_ref(xx_eq1, xx_eq2, uu_eq1, uu_eq2, TT,constant_traj)
 
     #Newton Loop
-    xx_opt, uu_opt, gamma, J_new, armijo_data, history = Newton_Loop.newton_loop(xx_ref,uu_ref,xx_eq1,uu_eq1,max_iters,newton_threshold,descent_norm_threshold,Armijo_Plot)
+    xx_opt, uu_opt, gamma, J_new, armijo_data, history = Newton_Loop.newton_loop(xx_ref,uu_ref,xx_eq1,uu_eq1,max_iters,newton_threshold,descent_norm_threshold,Armijo_Plot,task)
 
     cost_history= history['cost_history']
     armijo_data_history = history['armijo_data_history']
@@ -94,7 +98,7 @@ if tasks_to_run[2]:
     np.save('data/task2_uu_ref.npy', uu_ref)
 
     #Plot trajectories, cost, descent 
-    Newton_Loop.newton_plot(TT,xx_history,xx_ref,uu_history,xx_opt,uu_opt,cost_history,descent_norm_history)
+    Newton_Loop.newton_plot(TT,xx_history,xx_ref,uu_history,xx_opt,uu_opt,cost_history,descent_norm_history,task)
 
     #print("Animation for task 2")
     animation.animate_double_pendolum(xx_star = np.degrees(xx_opt), xx_ref  = np.degrees(xx_ref),dt = dt,title='Task 2: Newton optimization')
@@ -107,7 +111,9 @@ if tasks_to_run[2]:
 # START TASK 3
 ##############################################################
 if tasks_to_run[3]:
-    print("----- Task 3 -----")
+
+    print("\n----- Task 3 -----\n")
+    par.set_cost_matrices('tracking')
 
     if not tasks_to_run[2]:
         print('Loading Task2 result...')
@@ -145,8 +151,10 @@ if tasks_to_run[3]:
 ##############################################################
 if tasks_to_run[4]:
 
-    #Here there will be MPC task part
-    print("----- Task 4 -----")
+    print("\n----- Task 4 -----\n")
+
+    par.set_cost_matrices('tracking')
+    task = 4 
 
     if not tasks_to_run[2]:
         xx_opt = np.load('data/task2_xx_opt.npy')
@@ -195,7 +203,8 @@ if tasks_to_run[4]:
 #START TASK 5 
 ##############################################################
 if tasks_to_run[5]:
-    print('----- Task 5 -----')
+    print("\n----- Task 5 -----\n")
+    task = 5 
 
     if not tasks_to_run[2]:
         xx_opt = np.load('data/task2_xx_opt.npy')

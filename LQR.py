@@ -82,12 +82,23 @@ def plot_LQR(TT,xx_ref,xx_opt,xx_lqr,uu_opt,uu_lqr):
     #Plot control input
     axs[4].plot(uu_opt[0, :-1], 'r--', linewidth=1.5, label='Optimal input')
     axs[4].plot(uu_lqr[0, :-1], 'g', linewidth=1.2, label='LQR input')
-    axs[4].axhline(y=par.umax, color='k', linestyle='--', label='Input constraints')
-    axs[4].axhline(y=par.umin, color='k', linestyle='--')
     axs[4].set_ylabel(r'$\tau$ [Nm]')
     axs[4].set_xlabel('Time steps')
     axs[4].grid(True, alpha=0.5)
     axs[4].legend(loc='best')
 
-    plt.suptitle('Task 3: LQR', fontsize=14)
+    plt.suptitle('Task 3: Trajectory Tracking via LQR', fontsize=14)
+    plt.show()
+
+    #Plot tracking error 
+    track_error = np.linalg.norm(xx_lqr - xx_opt,axis=0)
+    
+    plt.figure(figsize=(10,6))
+    plt.semilogy(t,track_error,linewidth=2,color='green',label='LQR Tracking Error')
+    plt.xlabel('Time [s]',fontsize=2)
+    plt.ylabel(r'Tracking Error $\|x_{LQR} - x_{ref}\|$', fontsize=12)
+    plt.title(f'Task 3: LQR Tracking Error',fontsize=14)
+    plt.grid(True,which='both',alpha=0.3)
+    plt.legend(fontsize=1)
+    plt.tight_layout()
     plt.show()

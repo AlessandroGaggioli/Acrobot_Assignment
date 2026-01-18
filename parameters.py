@@ -1,11 +1,12 @@
 import numpy as np
 
+
 # TASK SELECTION 
 tasks_to_run = {
     0: False, #Test dynamics 
-    1: True, #Newton - step reference
-    2: True, #Newton - smooth reference 
-    3: True, #LQR tracking
+    1: False, #Newton - step reference
+    2: False, #Newton - smooth reference 
+    3: False, #LQR tracking
     4: True, #MPC tracking
     5: True #animation
 }
@@ -48,9 +49,29 @@ theta2_end = np.radians(45)
 perturb = np.array([np.radians(1), np.radians(1), 0.0, 0.0])
 
 #Cost matrices
-Q = np.diag([10,10,1,1]) #weight on theta1, theta2, dtheta1, dtheta2 for stage cost
-R = np.array([[0.1]]) #weight on tau
-QT = np.diag([500,500,100,100]) #high terminal weight for terminal cost
+
+# Cost matrices - DEFAULT (task 1-2)
+Q = np.diag([10, 10, 1, 1])
+R = np.array([[0.1]])
+QT = np.diag([500, 500, 100, 100])
+
+# Cost matrices - TASK 3-4 (tracking)
+Q_tracking = np.diag([100, 100, 10, 10])
+R_tracking = np.array([[1.0]])
+QT_tracking = np.diag([1000, 1000, 200, 200])
+
+def set_cost_matrices(task_type='default'):
+
+    global Q, R, QT
+    
+    if task_type == 'tracking':
+        Q = Q_tracking.copy()
+        R = R_tracking.copy()
+        QT = QT_tracking.copy()
+    else:  # 'default'
+        Q = np.diag([10, 10, 1, 1])
+        R = np.array([[0.1]])
+        QT = np.diag([500, 500, 100, 100])
 
 #MPC parameters
-T_pred = 10
+T_pred = 30

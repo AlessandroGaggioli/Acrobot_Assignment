@@ -245,7 +245,7 @@ def armijo_search(xx, uu, xx_ref, uu_ref, Kt, sigma_t, J_old,descent_arm,plot=Fa
 
     return xx_new, uu_new, gamma, J_new, armijo_data
 
-def plot_armijo_iteration(xx, uu, xx_ref, uu_ref, Kt, sigma_t, armijo_data, newton_iter):
+def plot_armijo_iteration(xx, uu, xx_ref, uu_ref, Kt, sigma_t, armijo_data, newton_iter,task):
     '''Plot Armijo line search for a specific Newton iteration'''
     
     TT = xx.shape[1]
@@ -283,7 +283,7 @@ def plot_armijo_iteration(xx, uu, xx_ref, uu_ref, Kt, sigma_t, armijo_data, newt
     plt.grid(True, alpha=0.3)
     plt.xlabel('stepsize', fontsize=12)
     plt.ylabel('Cost J', fontsize=12)
-    plt.title(f'Armijo Line Search - Newton Iteration {newton_iter}', fontsize=14)
+    plt.title(f'Armijo Line Search - Newton Iteration {newton_iter} - Task {task}', fontsize=14)
     plt.legend(fontsize=10)
     plt.tight_layout()
     plt.show()
