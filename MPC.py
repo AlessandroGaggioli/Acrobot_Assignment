@@ -4,6 +4,7 @@ import dynamics as dyn
 import cost
 import cvxpy as cvx
 import casadi as ca
+import matplotlib.pyplot as plt
 
 ns = par.ns
 ni = par.ni
@@ -226,3 +227,32 @@ def simulate_mpc(xx_init,xx_ref,uu_ref,T_sim,T_pred,verbose=False):
 #         xx_mpc[:, kk+1] = dyn.dynamics_casadi(xx_mpc[:, kk], uu_mpc[:, kk])[0].flatten()
 
 #     return xx_mpc, uu_mpc
+
+def plot_MPC(TT,xx_ref,xx_opt,xx_mpc,uu_opt,uu_mpc):
+    #Plot for MPC
+    t = np.arange(TT) * par.dt
+    fig, axs = plt.subplots(5, 1, figsize=(10, 15), sharex=True)
+    plt.subplots_adjust(hspace=0.3)
+
+    state_labels = [r'$\theta_1$ [rad]', r'$\theta_2$ [rad]', 
+                    r'$\dot{\theta}_1$ [rad/s]', r'$\dot{\theta}_2$ [rad/s]']
+
+    for i in range(xx_ref.shape[0]):
+        axs[i].plot(t, np.degrees(xx_opt[i, :]), 'r--', label='Optimal traj')
+        axs[i].plot(t, np.degrees(xx_mpc[i, :-1]), 'b', label='MPC tracking')
+        axs[i].set_ylabel(f"{state_labels[i]}")
+        axs[i].grid(True)
+        axs[i].legend(loc='best')
+
+    axs[4].plot(t[:-1], uu_opt[0, :-1], 'g--', label='Optimal input')
+    axs[4].plot(t[:-1], uu_mpc[0, :-1], 'b', label='MPC input')
+    axs[4].axhline(y=par.umax, color='k', linestyle='--', label='Input constraints')
+    axs[4].axhline(y=par.umin, color='k', linestyle='--')
+    axs[4].set_ylabel(r'$\tau$ [Nm]')
+    axs[4].set_xlabel("Time [s]")
+    axs[4].grid(True)
+    axs[4].legend(loc='best')
+
+    plt.suptitle(f"MPC Results (N_pred = {par.T_pred})", fontsize=14)
+    plt.tight_layout(rect = [0,0,1,0.97])
+    plt.show()

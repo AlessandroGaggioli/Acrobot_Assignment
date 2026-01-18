@@ -1,5 +1,16 @@
 import numpy as np
 
+# TASK SELECTION 
+tasks_to_run = {
+    0: False, #Test dynamics 
+    1: True, #Newton - step reference
+    2: True, #Newton - smooth reference 
+    3: True, #LQR tracking
+    4: True, #MPC tracking
+    5: True #animation
+}
+Armijo_Plot = True
+
 # dynamic parameters - Set 1 
 m1 = 1.0  # mass of link 1 (kg)
 m2 = 1.0  # mass of link 2 (kg)
@@ -23,10 +34,11 @@ tf = 5          # simulation time (s)
 Newton_max_iters = 50
 newton_threshold = 1e-7
 Armjio_max_iters = 25
+descent_norm_threshold = 1e-4
 
 #Input constraints (for MPC simulation)
-umin = -2
-umax = 2
+umin = -3
+umax = 3
 
 #Imposed theta2 angles
 theta2_start = np.radians(0)

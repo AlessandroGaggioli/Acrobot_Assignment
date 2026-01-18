@@ -4,6 +4,7 @@ import parameters as par
 import matplotlib.pyplot as plt
 import math 
 from scipy.optimize import least_squares
+import os
 
 ns, ni = par.ns, par.ni
 dt = par.dt
@@ -54,7 +55,7 @@ def build_smooth_ref(xe1, xe2, ue1, ue2, TT,constant_traj):
     dt = par.dt
     
     xxref = np.zeros((ns, TT))
-    uuref = np.zeros((ni, TT))
+    uuref = np.zeros((ni, TT)) 
     
     #percentage time margin at beginning and end
     margin = int(constant_traj * TT) #change factor to have stable equilibrium at beginning and end... (ideally in paramters or main!!!)
@@ -89,3 +90,43 @@ def build_smooth_ref(xe1, xe2, ue1, ue2, TT,constant_traj):
     uuref[:, TT - margin:] = np.atleast_1d(ue2)[:, None]
 
     return xxref, uuref
+
+def equilibria(equilibria_file,current_params):
+    if os.path.exists(equilibria_file):
+        print(' ----- Loading equilibria from file -----')
+        eq_data = np.load(equilibria_file, allow_pickle=True)
+
+        if len(eq_data)>4 and np.array_equal(eq_data[4],current_params):
+            xx_eq1, xx_eq2 = eq_data[0], eq_data[1]
+            uu_eq1, uu_eq2 = eq_data[2][0], eq_data[3][0]
+
+        else:
+            print('----- Parameters changed, recomputing equilibria -----')
+            os.path.exists(equilibria_file) and os.remove(equilibria_file)
+            
+            xe1 = np.array([0.0, par.theta2_start, 0.0, 0.0])
+            xe2 = np.array([0.0, par.theta2_end, 0.0, 0.0])
+
+            xx_eq1, uu_eq1 = find_equilibria(xe1[0], xe1[1]) 
+            xx_eq2, uu_eq2 = find_equilibria(xe2[0], xe2[1])
+
+            print(f"xx_eq1: {xx_eq1*180/np.pi}, uu_eq1: {uu_eq1}")
+            print(f"xx_eq2: {xx_eq2*180/np.pi}, uu_eq2: {uu_eq2}")
+
+            # Salva equilibri CON i parametri usati
+            np.save(equilibria_file, np.array([xx_eq1, xx_eq2, [uu_eq1], [uu_eq2], current_params], dtype=object))
+    else: 
+        print('----- Computing equilibria -----')
+        xe1 = np.array([0.0, par.theta2_start, 0.0, 0.0])
+        xe2 = np.array([0.0, par.theta2_end, 0.0, 0.0])
+
+        xx_eq1,uu_eq1 = find_equilibria(xe1[0],xe1[1]) 
+        xx_eq2, uu_eq2 = find_equilibria(xe2[0],xe2[1])
+
+        print(f"xx_eq1: {xx_eq1*180/np.pi}, uu_eq1: {uu_eq1}")
+        print(f"xx_eq2: {xx_eq2*180/np.pi}, uu_eq2: {uu_eq2}")
+
+        #save equilibria
+        np.save(equilibria_file, np.array([xx_eq1, xx_eq2, [uu_eq1], [uu_eq2]], dtype=object))
+
+    return xx_eq1,xx_eq2,uu_eq1,uu_eq2

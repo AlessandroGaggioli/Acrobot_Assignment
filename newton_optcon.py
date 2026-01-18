@@ -25,12 +25,15 @@ def backward_passing(xx, uu, xx_ref, uu_ref):
     
     ns, TT = xx.shape
     ni = uu.shape[0]
-
-    descent_arm = 0 
     
     # Initialize arrays for gains and feedforward
     Kt = np.zeros((ni, ns, TT-1))
     sigma_t = np.zeros((ni, TT-1))
+
+    #Storage 
+    At_storage = np.zeros((ns,ns,TT-1))
+    Bt_storage = np.zeros((ns,ni,TT-1))
+    GradJ_storage = np.zeros((ni,TT-1))
     
     # Initialize P and p for backward recursion
     # Terminal cost derivatives
@@ -38,6 +41,7 @@ def backward_passing(xx, uu, xx_ref, uu_ref):
     
     PT = QT
     pt = lx_T.flatten()
+    lamb = lx_T.flatten() # terminal costate equation 
     
     # Backward recursion (from T-1 to 0)
     for tt in range(TT-2, -1, -1):
@@ -46,21 +50,24 @@ def backward_passing(xx, uu, xx_ref, uu_ref):
         _, fx, fu = dyn.dynamics_casadi(xx[:, tt], uu[:, tt])
         At = fx.T  # (ns, ns)
         Bt = fu.T  # (ns, ni)
+
+        #Store the matrices 
+        At_storage[:,:,tt] = At 
+        Bt_storage[:,:,tt] = Bt
         
         # Get cost derivatives at current point
-        lx, lu, Qtt, Rtt = cost.stage_grad(xx[:, tt], xx_ref[:, tt], 
-                                            uu[:, tt], uu_ref[:, tt])
+        lx, lu, Qtt, Rtt = cost.stage_grad(xx[:, tt], xx_ref[:, tt], uu[:, tt], uu_ref[:, tt])
         
         qt = lx.flatten()
         rt = lu.flatten()
+
+        #CALCOLO DEL VERO GRADIENTE (usare lambda (Adjoint), non 'pt)
+        grad_J_u_Arm = rt + Bt.T @ lamb
+        GradJ_storage[:,tt] = grad_J_u_Arm
         
         # Compute Q, R, S matrices (second order terms)
-        # For now, we use only the cost Hessian (regularization strategy)
-        # Q_t includes dynamics contribution would be: Qtt + fx.T @ PT @ fx
-        # For simplicity and numerical stability, we start with cost Hessian only
-        
-        Qt = Qtt  # (ns, ns)
-        Rt = Rtt  # (ni, ni)
+        Qt = Qtt  # (ns, ns) #First method regularization. Consider only the cost Hessian (w.r.t. x)
+        Rt = Rtt  # (ni, ni) #First method regularization. Consider only the cost Hessian (w.r.t. u)
         St = np.zeros((ni, ns))  # Cross term (usually zero for our cost)
         
         # Riccati recursion terms
@@ -70,28 +77,26 @@ def backward_passing(xx, uu, xx_ref, uu_ref):
         BT_P_B = Bt.T @ PT @ Bt
         BT_P_A = Bt.T @ PT @ At
 
-        grad_J_u = rt + Bt.T @ pt
+        Qu_Ric = rt + Bt.T @ pt # (t_c = 0) 
         
-        # Compute regularized R matrix
-        R_reg = Rt + BT_P_B
+        # Compute R matrix
+        R_Kt = Rt + BT_P_B
         
         # Add small regularization for numerical stability
         epsilon = 1e-6
-        R_reg += epsilon * np.eye(ni)
+        #R_reg += epsilon * np.eye(ni) #Other strategy Regularization
         
         # Compute gain K_t
         try:
-            R_inv = np.linalg.inv(R_reg)
+            R_inv = np.linalg.inv(R_Kt)
         except np.linalg.LinAlgError:
             print(f"Warning: Singular matrix at t={tt}, using pseudo-inverse")
-            R_inv = np.linalg.pinv(R_reg)
+            R_inv = np.linalg.pinv(R_Kt)
         
         Kt[:, :, tt] = -R_inv @ (St + BT_P_A)
         
         # Compute feedforward σ_t
-        sigma_t[:, tt] = -R_inv @ (rt + Bt.T @ pt)
-
-        descent_arm += grad_J_u @ sigma_t[:,tt]
+        sigma_t[:, tt] = -R_inv @ (Qu_Ric)
         
         # Update P and p for next iteration (going backward)
         # p_t = q_t + A^T p_{t+1} - K_t^T (R_t + B^T P_{t+1} B) σ_t
@@ -100,14 +105,54 @@ def backward_passing(xx, uu, xx_ref, uu_ref):
         AT_p = At.T @ pt
         AT_P_A = At.T @ PT @ At
         
-        KT_R_sigma = Kt[:, :, tt].T @ R_reg @ sigma_t[:, tt]
-        KT_R_K = Kt[:, :, tt].T @ R_reg @ Kt[:, :, tt]
+        KT_R_sigma = Kt[:, :, tt].T @ R_Kt @ sigma_t[:, tt]
+        KT_R_K = Kt[:, :, tt].T @ R_Kt @ Kt[:, :, tt]
         
         pt = qt + AT_p - KT_R_sigma
         PT = Qt + AT_P_A - KT_R_K
+
+        #Update lambda = q + A^T * lambda_next (COSTATE EQUATION)
+        lamb = qt + At.T @ lamb
+
+    #Compute Delta_u and Descent_arm 
+    delta_x = np.zeros(ns) #delta_x initialized to zero (no variation at initial state)
+    descent_arm = 0.0 
+    delta_u_seq = np.zeros((ni,TT-1))
+
+    for tt in range(TT-1):
+        At = At_storage[:,:,tt]
+        Bt = Bt_storage[:,:,tt]
+        grad_J_u = GradJ_storage[:,tt]
+
+        #delta_u = K * delta_x + sigma 
+        delta_u = Kt[:, :, tt] @ delta_x + sigma_t[:, tt]
+
+        delta_u_seq[:,tt] = delta_u
+
+        #accumulate descent_arm 
+        descent_arm += grad_J_u @ delta_u
+
+        #Linear evolution of the state
+        #delta_x_next = A*delta_x + B * delta_u 
+        delta_x = At @ delta_x + Bt @ delta_u
     
     # Compute norm of sigma for convergence check
-    descent_norm = np.linalg.norm(sigma_t)
+    descent_norm = np.linalg.norm(delta_u_seq)
+
+    # # ===== Plot delta_u_seq =====
+    # time = np.arange(TT-1)
+
+    # plt.figure()
+    # for i in range(ni):
+    #     plt.plot(time, delta_u_seq[i, :], label=f'delta_u[{i}]')
+
+    # plt.xlabel('Time step')
+    # plt.ylabel('Delta u')
+    # plt.title('Control variation delta_u_seq')
+    # plt.legend()
+    # plt.grid(True)
+    # plt.show()
+
     
     return Kt, sigma_t,descent_arm, descent_norm
 
@@ -138,7 +183,7 @@ def armijo_search(xx, uu, xx_ref, uu_ref, Kt, sigma_t, J_old,descent_arm,plot=Fa
         J_new = cost.cost_fcn(xx_new, uu_new, xx_ref, uu_ref)
 
         #print(f"J_new:{J_new},J_old + c * gamma * descent_arm:{J_old + c * gamma * descent_arm}")
-        
+
         gamma_list.append(gamma)
         costs_armijo.append(J_new)
 
@@ -164,7 +209,7 @@ def armijo_search(xx, uu, xx_ref, uu_ref, Kt, sigma_t, J_old,descent_arm,plot=Fa
             xx_temp = np.zeros((ns,TT))
             uu_temp = np.zeros((ni,TT))
 
-            xx_temp[:,0] = xx[:,0] #??? sarebbe x0
+            xx_temp[:,0] = xx[:,0] 
 
             for tt in range(TT-1):
                 uu_temp[:,tt]=uu[:,tt] +Kt[:,:,tt]@(xx_temp[:,tt]-xx[:,tt]) + step*sigma_t[:,tt]
