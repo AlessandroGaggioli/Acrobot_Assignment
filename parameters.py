@@ -1,12 +1,11 @@
 import numpy as np
 
-
 # TASK SELECTION 
 tasks_to_run = {
-    0: False, #Test dynamics 
-    1: False, #Newton - step reference
-    2: False, #Newton - smooth reference 
-    3: False, #LQR tracking
+    0: True, #Test dynamics 
+    1: True, #Newton - step reference
+    2: True, #Newton - smooth reference 
+    3: True, #LQR tracking
     4: True, #MPC tracking
     5: True #animation
 }
@@ -41,6 +40,9 @@ descent_norm_threshold = 1e-4
 umin = -3
 umax = 3
 
+#MPC parameters
+T_pred = 30
+
 #Imposed theta2 angles
 theta2_start = np.radians(0)
 theta2_end = np.radians(45)
@@ -48,7 +50,8 @@ theta2_end = np.radians(45)
 #Perturbation on initial condition 
 perturb = np.array([np.radians(1), np.radians(1), 0.0, 0.0])
 
-#Cost matrices
+#################################################
+### COST MATRICES ###
 
 # Cost matrices - DEFAULT (task 1-2)
 Q = np.diag([10, 10, 1, 1])
@@ -73,5 +76,4 @@ def set_cost_matrices(task_type='default'):
         R = np.array([[0.1]])
         QT = np.diag([500, 500, 100, 100])
 
-#MPC parameters
-T_pred = 30
+####################################################

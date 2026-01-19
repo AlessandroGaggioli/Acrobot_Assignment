@@ -1,28 +1,12 @@
 import numpy as np
 import dynamics as dyn
 import parameters as par
-import matplotlib.pyplot as plt
-import math 
 from scipy.optimize import least_squares
 import os
-
-ns, ni = par.ns, par.ni
-dt = par.dt
-TT = int(par.tf/par.dt) 
-
-#constant_traj = 0.50 # [%] - percentage for the constant part
-
-#Equilibium  points
-# xe1 = np.array([0.0, np.radians(25), 0.0, 0.0])
-# xe2 = np.array([0.0, np.radians(50), 0.0, 0.0])
 
 def find_equilibria(theta1_guess,theta2): #theta_2 fixed, theta1_guess 
 
     def equilibrium_eqs(z):
-        """
-        z = [theta1, tau]. z is the unknown variables, theta2 was fixed as target 
-        This function returns the residual between two states [x(k+1) - x(k)]
-        """
         theta1, tau = z
 
         xx = np.array([theta1, theta2, 0.0, 0.0])
@@ -50,7 +34,7 @@ def find_equilibria(theta1_guess,theta2): #theta_2 fixed, theta1_guess
     return xx_eq,u_eq
 
 def build_smooth_ref(xe1, xe2, ue1, ue2, TT,constant_traj):
-    '''Generates a smooth reference trajectory between tweo equilibria by using a 3rd ordet poly'''
+    '''Generates a smooth reference trajectory between two equilibria by using a 3rd order poly'''
     ns, ni = par.ns, par.ni
     dt = par.dt
     
@@ -69,19 +53,14 @@ def build_smooth_ref(xe1, xe2, ue1, ue2, TT,constant_traj):
     for kk in range(margin, TT - margin):
         #Normalized time in [0, 1]
         s = (kk - margin) / (TT - 2 * margin - 1)
-        
         #3rd order poly to ensure initial and final zero velocity
         alpha = 3*s**2 - 2*s**3
-        
         #time derivative of poly
         d_alpha = (6*s - 6*s**2) / duration
-        
         #Smooth interpolation for angles
         xxref[:2, kk] = (1 - alpha) * xe1[:2] + alpha * xe2[:2]
-        
         #Angular velocities, time derivatives of angles
         xxref[2:, kk] = d_alpha * (xe2[:2] - xe1[:2])
-        
         #Smooth interpolation between the two equilibrium inputs
         uuref[:, kk] = (1 - alpha) * ue1 + alpha * ue2
 

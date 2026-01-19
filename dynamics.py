@@ -3,8 +3,6 @@ import sympy as sy
 import parameters as par #import parameters file "parameters.py"
 import casadi as ca
 
-#system dimensions 
-
 ns = par.ns #number of states [theta1, theta2, dtheta1, dtheta2]
 ni = par.ni # number of inputs [tau] (torque applied at joint 2)
 
@@ -171,7 +169,7 @@ def dynamics_casadi(xx, uu):
 
         #integrate dynamics over dt using CVODES solver
         dae = {'x': x, 'p': u, 'ode': xdot}
-        integrator = ca.integrator('int', 'cvodes', dae, {'tf': dt})
+        integrator = ca.integrator('int', 'cvodes', dae,0,dt)
         
         #next state (d-t)
         x_next = integrator(x0=x, p=u)['xf']
