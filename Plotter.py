@@ -89,7 +89,7 @@ def plot_method_iterations(TT, xx_history, xx_ref, uu_history,uu_ref,task):
     #### states ####
     for i in range(4):
 
-        print(r"\nPlotting evolution of state: {state_names[i]}\n")
+        print(f"\nPlotting evolution of state: {state_names[i]}\n")
 
         fig, axs = plt.subplots(len(iters_to_plot), 1,figsize=(10, 8),sharex=True)
 

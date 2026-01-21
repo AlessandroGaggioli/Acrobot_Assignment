@@ -6,12 +6,12 @@ import casadi as ca
 ns = par.ns
 ni = par.ni
 
-def mpc_solver(x_t,x_ref_horizon,u_ref_horizon,T_pred):
+def mpc_solver(x_t,x_ref_horizon,u_ref_horizon,T_pred,QT_mpc=None):
 
     #cost parameters
     Q = ca.DM(par.Q)
     R = ca.DM(par.R)
-    QT = ca.DM(par.QT)
+    QT = ca.DM(QT_mpc if QT_mpc is not None else par.QT)
 
     # opti object 
     opti = ca.Opti()
@@ -89,6 +89,12 @@ def simulate_mpc(xx_init,xx_ref,uu_ref,T_sim,T_pred):
 
     print(f"Starting MPC Simulation (Horizon={T_pred}...)")
 
+    if par.use_ARE: 
+        import ARE
+        QT_mpc = ARE.compute_PT_ARE(xx_ref,uu_ref)
+    else: 
+        QT_mpc = par.QT 
+
     for tt in range(T_sim):
 
         x_t = xx_mpc[:,tt]
@@ -121,7 +127,7 @@ def simulate_mpc(xx_init,xx_ref,uu_ref,T_sim,T_pred):
             u_ref_horizon = np.hstack([u_chunk, u_pad])
         
         #Solve MPC
-        u_opt,_,_ = mpc_solver(x_t,x_ref_horizon,u_ref_horizon,T_pred)
+        u_opt,_,_ = mpc_solver(x_t,x_ref_horizon,u_ref_horizon,T_pred,QT_mpc=QT_mpc)
 
         #Save and apply input 
         uu_mpc[:,tt] = u_opt

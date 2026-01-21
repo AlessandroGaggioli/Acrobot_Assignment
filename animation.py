@@ -31,8 +31,11 @@ def animate_double_pendolum(xx_star, xx_ref, dt, title = 'Pendulum animation'):
       fig, ax = plt.subplots(figsize=(10,10))
       #ax.set_xlim(-((par.l1 + par.l2)*1.05), ((par.l1 + par.l2)*1.05))  #limits based on length of the links
       #ax.set_ylim(-((par.l1 + par.l2)*1.05), ((par.l1 + par.l2)*1.05))
+      #ax.set_aspect('equal')
+
       ax.set_xlim(-1.0,1.0) 
       ax.set_ylim(-((par.l1 + par.l2)*1.05), 0.5)
+      ax.set_aspect('equal')
 
       # Plot elements
       # solid line ('o-'), dashed line ('o--'), lw=line width
@@ -84,7 +87,7 @@ def animate_double_pendolum(xx_star, xx_ref, dt, title = 'Pendulum animation'):
             return pendulum_line, reference_line, time_text
 
       # Create the animation
-      ani = FuncAnimation(fig, update, frames=TT, init_func=init, blit=True, interval=0.1)
+      ani = FuncAnimation(fig, update, frames=TT, init_func=init, blit=True, interval=par.dt*1000)
 
       # Display the animation
       plt.show()

@@ -3,6 +3,7 @@ import dynamics as dyn
 import cost
 import parameters as par
 import matplotlib.pyplot as plt
+import ARE
 
 ns, ni = par.ns, par.ni
 max_iters = par.Armjio_max_iters
@@ -38,11 +39,23 @@ def backward_passing(xx, uu, xx_ref, uu_ref):
     
     # Initialize P and p for backward recursion
     # Terminal cost derivatives
-    lx_T, QT = cost.terminal_grad(xx[:, -1], xx_ref[:, -1])
+    # lx_T, QT = cost.terminal_grad(xx[:, -1], xx_ref[:, -1])
     
-    PT = QT
+    # PT = QT
+    # pt = lx_T.flatten()
+    # lamb = lx_T.flatten() # terminal costate equation 
+
+
+    # Initialize P and p for backward recursion
+    # Terminal cost derivatives
+    if par.use_ARE: 
+        PT = ARE.compute_PT_ARE(xx_ref,uu_ref)
+        lx_T,_ = cost.terminal_grad(xx[:,-1],xx_ref[:,-1])
+    else: 
+        lx_T,PT = cost.terminal_grad(xx[:,-1],xx_ref[:,-1])
+
     pt = lx_T.flatten()
-    lamb = lx_T.flatten() # terminal costate equation 
+    lamb = lx_T.flatten()
     
     # Backward recursion (from T-1 to 0)
     for tt in range(TT-2, -1, -1):
@@ -153,7 +166,6 @@ def backward_passing(xx, uu, xx_ref, uu_ref):
     # plt.legend()
     # plt.grid(True)
     # plt.show()
-
     
     return Kt, sigma_t,descent_arm, descent_norm
 

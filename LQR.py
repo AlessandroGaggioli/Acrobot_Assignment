@@ -2,7 +2,7 @@ import numpy as np
 import cost
 import dynamics as dyn
 import parameters as par
-import matplotlib.pyplot as plt
+import ARE
 
 ns, ni = par.ns, par.ni
 
@@ -16,8 +16,15 @@ def lqr(xx_ref, uu_ref):
     TT = xx_ref.shape[1]
     
     #Initialize cost-to-go Hessian with terminal cost weight
-    P = cost.terminal_grad(xx_ref[:, -1], xx_ref[:, -1])[1]  #terminal cost
+    #P = cost.terminal_grad(xx_ref[:, -1], xx_ref[:, -1])[1]  #terminal cost
     
+    #Initialize cost-to-go Hessian with terminal cost weight
+    if par.use_ARE: 
+        import newton_optcon
+        P = ARE.compute_PT_ARE(xx_ref,uu_ref) #using ARE for terminal cost
+    else: 
+        P = cost.terminal_grad(xx_ref[:, -1], xx_ref[:, -1])[1]  #terminal cost
+
     Kt = np.zeros((ni, ns, TT-1))
 
     #Backward Riccati recursion
@@ -25,8 +32,6 @@ def lqr(xx_ref, uu_ref):
         _, fx_T, fu_T = dyn.dynamics_casadi(xx_ref[:, kk], uu_ref[:, kk]) #linearize dynamics at each step along the reference traj
         At = fx_T.T
         Bt = fu_T.T
-
-        #_, _, Q, R = cost.stage_grad(xx_ref[:, kk], xx_ref[:, kk], uu_ref[:, kk], uu_ref[:, kk]) #weighting matrices from cost function
 
         #Algebraic Riccati eq, K = -(R + B.T * P * B)^-1 * B.T * P * A
         Q_uu = R + Bt.T @ P @ Bt
